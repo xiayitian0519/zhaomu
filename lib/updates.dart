@@ -18,6 +18,10 @@ class AppUpdate {
 }
 
 const List<AppUpdate> kUpdates = <AppUpdate>[
+  AppUpdate('2.16.0', '2026-10-17', <String>[
+    '日历默认态改传统排版：格子等大、待办每条一行、容量满显示省略号',
+    '展开态大格恢复格子间隙',
+  ]),
   AppUpdate('2.15.3', '2026-10-17', <String>[
     '日历恢复到之前的版本（今天的日历新排版尝试已撤回）',
   ]),

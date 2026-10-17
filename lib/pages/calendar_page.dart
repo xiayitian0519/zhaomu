@@ -347,7 +347,8 @@ class _CalendarPageState extends State<CalendarPage> {
       onTap: () => setState(() => _selected = d),
       child: Container(
         // 默认态格间留 2px 缝（原样）；展开态无缝紧贴
-        margin: collapsed ? const EdgeInsets.all(2) : EdgeInsets.zero,
+        // 两个态格子间都留 2px 缝（2026-10-17 恢复）
+        margin: const EdgeInsets.all(2),
         padding: const EdgeInsets.fromLTRB(4, 5, 4, 5),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
@@ -410,12 +411,9 @@ class _CalendarPageState extends State<CalendarPage> {
                 ),
               ),
             if (extra > 0)
-              Text(
-                '+$extra',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  color: collapsed ? const Color(0xFF8E8E93) : const Color(0xFFAAAAAA),
-                ),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Text('⋮', style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
               ),
           ],
         ),
