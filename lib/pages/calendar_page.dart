@@ -170,7 +170,10 @@ class _CalendarPageState extends State<CalendarPage> {
     if (span2 <= 1) return (2, 1);
     final int span3 = (needH(cellW * 3) / unitH).ceil();
     if (span3 <= 1) return (3, 1);
-    // 宽到顶（3 列）还装不下 → 长无限延伸
+    // 三种宽度都装不进 1 档 → 选「档数最少」的宽度（不浪费宽度）；
+    // 档数相同选更窄的。字真的多时才用满 3 列宽省高度。
+    if (span1 <= span2 && span1 <= span3) return (1, span1);
+    if (span2 <= span3) return (2, span2);
     return (3, span3);
   }
 
