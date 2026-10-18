@@ -90,6 +90,8 @@ class _DetailPageState extends State<DetailPage> {
       style: st.remindStyle,
     );
     if (!mounted) return;
+    // 保存返回前收起键盘，避免回到列表页时停留在输入栏打字状态
+    FocusManager.instance.primaryFocus?.unfocus();
     Navigator.of(context).pop();
   }
 
