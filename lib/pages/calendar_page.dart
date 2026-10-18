@@ -184,8 +184,9 @@ class _CalendarPageState extends State<CalendarPage> {
     bool free(int r, int c) => !(taken[r]?.contains(c) ?? false);
 
     final List<_Placed> out = <_Placed>[];
+    // 1 号从自己实际的星期列开始（按真实日历对齐，2026-10-18 用户确认）
     int r = 0;
-    int c = 0;
+    int c = DateTime(m.year, m.month, 1).weekday - 1;
     int maxRow = 0;
     for (int d = 1; d <= days; d++) {
       while (c > 6 || !free(r, c)) {
