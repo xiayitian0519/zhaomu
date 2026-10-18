@@ -4,11 +4,13 @@ import 'dart:io';
 // Priority 同名，不加前缀会直接编译冲突。
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as fln;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'app_state.dart';
 import 'models.dart';
+import 'reminder_windows.dart';
 
 /// 提醒到点时怎么弹。存的是字符串，方便写进 json。
 class RemindStyle {
@@ -86,7 +88,15 @@ class Notifier {
   /// 冷启动时点开的待办 id（App 还没起来就点了通知）
   String? pendingTodoId;
 
-  bool get available => Platform.isAndroid || Platform.isIOS;
+  bool get available => Platform.isAndroid || Platform.isIOS || Platform.isWindows;
+
+  /// Windows 专属调度器。Android / iOS 上是 null，相关分支不会进。
+  ///
+  /// 为什么不和 Android 共用 zonedSchedule：见 reminder_windows.dart 顶部注释。
+  WindowsReminder? _win;
+
+  /// 设置页要显示「Windows 调度器排了几条 / 是不是活着」
+  WindowsReminder? get windowsReminder => _win;
 
   Future<void> init() async {
     if (_ready || !available) return;
@@ -105,13 +115,32 @@ class Notifier {
         requestBadgePermission: false,
         requestSoundPermission: false,
       );
+      // Windows：appUserModelId 会写进
+      // HKCU\Software\Classes\AppUserModelId\<aumid>，
+      // 未打包成 MSIX 的 exe 靠这条注册表才能弹 Toast。
+      // guid 是点通知回传回调用的标识，只要求全局唯一、不要随便改。
+      const fln.WindowsInitializationSettings windows =
+          fln.WindowsInitializationSettings(
+        appName: '朝暮',
+        appUserModelId: 'com.xiayitian.chaomu',
+        guid: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+      );
       await _plugin.initialize(
-        const fln.InitializationSettings(android: android, iOS: darwin),
+        const fln.InitializationSettings(
+          android: android,
+          iOS: darwin,
+          windows: windows,
+        ),
         onDidReceiveNotificationResponse: (fln.NotificationResponse r) {
           _handleTap(r.payload);
         },
       );
       _ready = true;
+
+      // Windows：插件的排程不可靠，改用它自己的定时比对（15 秒一拍）
+      if (Platform.isWindows) {
+        _win ??= WindowsReminder(_showWinToast)..start();
+      }
 
       // 冷启动：App 是被通知点开的
       try {
@@ -260,6 +289,9 @@ class Notifier {
     if (!available) return false;
     await init();
     if (!_ready) return false;
+    // Windows 没有「运行时申请通知权限」这一说，弹不弹只受系统
+    // 「通知和操作」总开关控制，代码里查不到也不该拦用户
+    if (Platform.isWindows) return true;
     try {
       if (Platform.isAndroid) {
         final fln.AndroidFlutterLocalNotificationsPlugin? a = _plugin
@@ -427,7 +459,40 @@ class Notifier {
         presentBadge: true,
         interruptionLevel: fln.InterruptionLevel.timeSensitive,
       ),
+      windows: _winDetails(title: title, body: body),
     );
+  }
+
+  /// Windows 通知参数。
+  ///
+  /// 故意不设 scenario：
+  /// - `alarm` 会让系统循环播放闹钟音，Windows 上很吵（用户选的是系统默认提示音）；
+  /// - `reminder` 必须配合后台任务 action 才生效，单独设了是无效属性。
+  fln.WindowsNotificationDetails _winDetails({
+    required String title,
+    required String body,
+  }) =>
+      fln.WindowsNotificationDetails(
+        subtitle: body.isEmpty ? null : body,
+        // 默认几秒就收进操作中心，容易错过；long 会多停一会儿
+        duration: fln.WindowsNotificationDuration.long,
+      );
+
+  /// Windows 到点弹一条，由 [WindowsReminder] 的定时器回调进来。
+  Future<void> _showWinToast(String todoId, String title, String body) async {
+    if (!_ready) return;
+    try {
+      await _plugin.show(
+        // 补弹的汇总通知没有 todoId，用固定 id 避免每次叠一条
+        todoId.isEmpty ? 999999 : _idOf(todoId),
+        title,
+        body,
+        fln.NotificationDetails(windows: _winDetails(title: title, body: body)),
+        payload: todoId,
+      );
+    } catch (e) {
+      lastScheduleError = 'Windows 弹窗失败：$e（多半是系统的通知权限被关了）';
+    }
   }
 
   /// 给一条待办排提醒。remind == null 或者铃声/开关关掉则取消。
@@ -483,11 +548,31 @@ class Notifier {
     // 提前量：把提醒时刻往前挪
     if (aheadMinutes > 0) when = when.subtract(Duration(minutes: aheadMinutes));
 
+    final String body = t.note.trim().isEmpty ? '朝暮提醒' : t.note.trim();
+
     if (!when.isAfter(DateTime.now())) {
+      // Windows：过去 12 小时内的算「关机 / 休眠时错过的」，先收起来，
+      // 由 rescheduleAll 末尾统一汇总成一条弹；再早的不提了，弹了也没意义。
+      if (Platform.isWindows &&
+          DateTime.now().difference(when) <= const Duration(hours: 12)) {
+        _win?.putMissed(
+          todoId: t.id,
+          title: t.title,
+          body: body,
+          when: when,
+        );
+      }
       note(
         '提醒时刻 ${when.year}-${_2(when.month)}-${_2(when.day)} '
         '${_2(when.hour)}:${_2(when.minute)} 已经过去了，没排',
       );
+      return;
+    }
+
+    // Windows：不进系统排程，交给内部调度器（原因见 reminder_windows.dart）
+    if (Platform.isWindows) {
+      _win?.put(todoId: t.id, title: t.title, body: body, when: when);
+      note('Windows：已排进托盘调度器（当前 ${_win?.count ?? 0} 条）');
       return;
     }
 
@@ -496,8 +581,6 @@ class Notifier {
       note('时区没初始化成功（tz.local 不可用），排不了', isError: true);
       return;
     }
-
-    final String body = t.note.trim().isEmpty ? '朝暮提醒' : t.note.trim();
 
     // 先按精确闹钟排；没权限会抛异常，降级成不精确的（晚到总比不响好）
     fln.AndroidScheduleMode mode = fln.AndroidScheduleMode.exactAllowWhileIdle;
@@ -664,10 +747,21 @@ class Notifier {
 
   /// 读 App 版本号，形如 "2.7.4+6"。
   ///
-  /// 从系统 PackageManager 读，不是写死在代码里的常量 ——
-  /// 写死的话每次发版都得记得改，早晚会忘（而且忘了也看不出来）。
+  /// Android 从 PackageManager 读，Windows 从 exe 自带的版本信息读 ——
+  /// 都不写死在代码里，否则每次发版都得记得改，早晚会忘。
   /// 读不到返回空串。
   Future<String> appVersion() async {
+    if (Platform.isWindows) {
+      try {
+        final PackageInfo p = await PackageInfo.fromPlatform();
+        if (p.version.isEmpty) return '';
+        return p.buildNumber.isEmpty
+            ? p.version
+            : '${p.version}+${p.buildNumber}';
+      } catch (_) {
+        return '';
+      }
+    }
     if (!Platform.isAndroid) return '';
     try {
       return await _ringChannel.invokeMethod<String>('getVersion') ?? '';
@@ -678,6 +772,11 @@ class Notifier {
 
   Future<void> cancelFor(Todo t) async {
     if (!available) return;
+    // Windows：只在内部调度器里删，系统的 cancel() 对非 MSIX 应用是空操作
+    if (Platform.isWindows) {
+      _win?.remove(t.id);
+      return;
+    }
     await init();
     if (!_ready) return;
     try {
@@ -689,6 +788,8 @@ class Notifier {
     if (!available) return;
     await init();
     lastScheduleError = '';
+    // Windows：先清空上次运行留下的内存表，避免新旧混在一起
+    if (Platform.isWindows) _win?.clear();
     final AppState st = AppState.I;
     for (final Todo t in st.todos) {
       await scheduleFor(
@@ -700,5 +801,7 @@ class Notifier {
         style: st.remindStyle,
       );
     }
+    // Windows：把错过的汇总成一条补弹
+    if (Platform.isWindows) await _win?.flushMissed();
   }
 }

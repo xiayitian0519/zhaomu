@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -10,12 +12,20 @@ import 'pages/detail_page.dart';
 import 'pages/home_page.dart';
 import 'pages/onboard_page.dart';
 import 'pages/settings_page.dart';
+import 'windows_shell.dart';
 
 /// 全局导航 key：点通知要能在任意页面跳去待办详情
 final GlobalKey<NavigatorState> rootNavKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Windows：先把桌面外壳起起来（窗口尺寸 430×900 + 托盘），再加载数据。
+  // 放在 load 之前，用户看到的启动过程更短。
+  if (Platform.isWindows) {
+    await WindowsShell.I.init();
+  }
+
   await AppState.I.load();
   await Notifier.I.init();
 

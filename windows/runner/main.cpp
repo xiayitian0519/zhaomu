@@ -26,8 +26,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
-  Win32Window::Size size(1280, 720);
-  if (!window.Create(L"chaomu", origin, size)) {
+  // Phone aspect ratio (430x900 logical px): the Windows build mirrors the
+  // mobile UI as-is, so no page layout had to change. window_manager can
+  // still resize it from the Dart side.
+  // NOTE: keep comments in this file ASCII-only. MSVC compiles with code page
+  // 936 here and treats C4819 (non-representable characters) as an error.
+  Win32Window::Size size(430, 900);
+  // L"\u671d\u66ae" spells the app name in escapes, keeping the file ASCII.
+  if (!window.Create(L"\u671d\u66ae", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

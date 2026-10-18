@@ -18,6 +18,11 @@ class AppUpdate {
 }
 
 const List<AppUpdate> kUpdates = <AppUpdate>[
+  AppUpdate('2.17.0', '2026-10-18', <String>[
+    'Windows 桌面版能装了，窗口按手机比例打开，界面跟手机一模一样',
+    'Windows 提醒：关窗口收进托盘继续跑，到点弹系统通知',
+    '关机期间错过的提醒，下次开机会汇总成一条提醒你',
+  ]),
   AppUpdate('2.16.0', '2026-10-17', <String>[
     '日历默认态改传统排版：格子等大、待办每条一行、容量满显示省略号',
     '展开态大格恢复格子间隙',

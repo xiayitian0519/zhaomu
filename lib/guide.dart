@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -86,12 +87,15 @@ class GuideController extends ChangeNotifier {
       text: '点这里来设置事件细则哦',
       btn: '下一步',
     ),
-    GuideStep(
-      key: GuideKeys.ringTile,
-      text: '所有提醒用哪个铃声，在这挑哦',
-      btn: '下一步',
-      route: GuideRoute.settings,
-    ),
+    // 铃声这一步只对手机有意义：Windows 版只有系统提示音，设置页里
+    // 根本没有这一行，留着会滚到不存在的锚点上
+    if (!Platform.isWindows)
+      GuideStep(
+        key: GuideKeys.ringTile,
+        text: '所有提醒用哪个铃声，在这挑哦',
+        btn: '下一步',
+        route: GuideRoute.settings,
+      ),
     GuideStep(
       key: GuideKeys.calBtn,
       text: '这里能总览和添加月待办哦',

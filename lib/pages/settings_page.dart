@@ -12,9 +12,11 @@ import '../guide.dart';
 import '../models.dart';
 import '../notifier.dart';
 import '../permissions.dart';
+import '../reminder_windows.dart';
 import '../store.dart';
 import '../update_log_page.dart';
 import '../widgets.dart';
+import '../windows_shell.dart';
 import 'review_history_page.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -659,15 +661,18 @@ class SettingsPage extends StatelessWidget {
 
               _sectionTitle('提醒'),
               _card(<Widget>[
-                ListTile(
-                  title: const Text('权限中心', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    '通知 / 精确闹钟 / 后台弹出 / 自启动 / 省电策略，逐条检查',
-                    style: TextStyle(fontSize: 12),
+                // Windows 没有「通知权限 / 精确闹钟 / 自启动 / 省电策略」这些
+                // Android 特有的东西，这一行只对手机有意义
+                if (!Platform.isWindows)
+                  ListTile(
+                    title: const Text('权限中心', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text(
+                      '通知 / 精确闹钟 / 后台弹出 / 自启动 / 省电策略，逐条检查',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => _openPermissionCenter(context),
                   ),
-                  trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: () => _openPermissionCenter(context),
-                ),
                 ListTile(
                   title: const Text('提醒方式', style: TextStyle(fontSize: 14)),
                   subtitle: Text(
@@ -690,9 +695,11 @@ class SettingsPage extends StatelessWidget {
                 ),
                 SwitchListTile(
                   title: const Text('默认打开铃声', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    '关掉后提醒只弹横幅 + 震动，不出声',
-                    style: TextStyle(fontSize: 12),
+                  subtitle: Text(
+                    Platform.isWindows
+                        ? '关掉后提醒只弹窗，不播系统提示音'
+                        : '关掉后提醒只弹横幅 + 震动，不出声',
+                    style: const TextStyle(fontSize: 12),
                   ),
                   value: st.defaultRemindOn,
                   onChanged: (bool v) async {
@@ -701,38 +708,48 @@ class SettingsPage extends StatelessWidget {
                 ),
                 ListTile(
                   title: const Text('测试提醒', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    '立刻发一条横幅通知，验证到底通不通',
-                    style: TextStyle(fontSize: 12),
+                  subtitle: Text(
+                    Platform.isWindows
+                        ? '立刻弹一条系统通知，验证 Toast 通不通'
+                        : '立刻发一条横幅通知，验证到底通不通',
+                    style: const TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.play_circle_outline, size: 18),
                   onTap: () => _testNotify(context, fullScreen: false),
                 ),
-                ListTile(
-                  title: const Text('测试全屏提醒', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    '立刻发一条全屏卡片，验证全屏权限',
-                    style: TextStyle(fontSize: 12),
+                // 全屏闹钟是 Android 的 fullScreenIntent，Windows 没有对应概念
+                if (!Platform.isWindows)
+                  ListTile(
+                    title: const Text('测试全屏提醒', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text(
+                      '立刻发一条全屏卡片，验证全屏权限',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.play_circle_outline, size: 18),
+                    onTap: () => _testNotify(context, fullScreen: true),
                   ),
-                  trailing: const Icon(Icons.play_circle_outline, size: 18),
-                  onTap: () => _testNotify(context, fullScreen: true),
-                ),
               ]),
 
-              _sectionTitle('铃声'),
-              _card(<Widget>[
-                ListTile(
-                  // 新手引导第 3 步的锚点（会先自动滚到这一行）
-                  key: GuideKeys.ringTile,
-                  title: const Text('通知铃声', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text(
-                    '在系统铃声页挑本地音乐 / 在线铃声，所有提醒统一用它',
-                    style: TextStyle(fontSize: 12),
+              // Windows 专属：托盘常驻 + 开机自启的状态和开关
+              if (Platform.isWindows) _DesktopSection(st: st),
+
+              // 铃声走的是 Android 通知渠道的声音设置，Windows 只有系统提示音
+              if (!Platform.isWindows) ...[
+                _sectionTitle('铃声'),
+                _card(<Widget>[
+                  ListTile(
+                    // 新手引导第 3 步的锚点（会先自动滚到这一行）
+                    key: GuideKeys.ringTile,
+                    title: const Text('通知铃声', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text(
+                      '在系统铃声页挑本地音乐 / 在线铃声，所有提醒统一用它',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.open_in_new, size: 18),
+                    onTap: () => _openChannelSettings(context),
                   ),
-                  trailing: const Icon(Icons.open_in_new, size: 18),
-                  onTap: () => _openChannelSettings(context),
-                ),
-              ]),
+                ]),
+              ],
 
               _sectionTitle('关于朝暮'),
               _card(<Widget>[
@@ -780,6 +797,96 @@ class SettingsPage extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Windows 专属：桌面常驻状态 + 开机自启开关
+///
+/// 单独成 widget 是因为要存开关状态，而 SettingsPage 是 StatelessWidget。
+class _DesktopSection extends StatefulWidget {
+  const _DesktopSection({required this.st});
+  final AppState st;
+
+  @override
+  State<_DesktopSection> createState() => _DesktopSectionState();
+}
+
+class _DesktopSectionState extends State<_DesktopSection> {
+  bool _auto = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _auto = WindowsShell.I.autoStartEnabled;
+  }
+
+  Widget _title(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF8A8A8A),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final WindowsReminder? wr = Notifier.I.windowsReminder;
+    final bool alive = wr?.running ?? false;
+    final int count = wr?.count ?? 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _title('桌面'),
+        Container(
+          color: const Color(0xFFFFFFFF),
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            children: <Widget>[
+              SwitchListTile(
+                title: const Text('开机自启', style: TextStyle(fontSize: 14)),
+                subtitle: const Text(
+                  '开机后自己在托盘启动；关机期间错过的提醒，开机时补一条',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: _auto,
+                onChanged: (bool v) async {
+                  final bool real = await WindowsShell.I.setAutoStart(v);
+                  if (!mounted) return;
+                  setState(() => _auto = real);
+                },
+              ),
+              ListTile(
+                title: const Text('提醒调度', style: TextStyle(fontSize: 14)),
+                subtitle: Text(
+                  alive
+                      ? '托盘常驻中 · 当前排着 $count 条待办提醒'
+                      : '调度器没起来，提醒不会响',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: Icon(
+                  alive ? Icons.check_circle_outline : Icons.error_outline,
+                  size: 18,
+                  color: alive
+                      ? const Color(0xFF3B6D11)
+                      : const Color(0xFFA32D2D),
+                ),
+              ),
+              const ListTile(
+                title: Text('关窗口 = 收进托盘', style: TextStyle(fontSize: 14)),
+                subtitle: Text(
+                  '程序不退出，提醒才不丢。真要退出用托盘图标的右键菜单。',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
