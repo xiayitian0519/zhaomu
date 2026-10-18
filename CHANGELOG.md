@@ -9,6 +9,20 @@
 
 ---
 
+## 2.17.1+30 — 2026-10-18
+
+### 修正
+
+1. **窗口一片空白**：`waitUntilReadyToShow` 的 Future 要等第一帧渲染完才完成，原来 await 了它，main() 一直卡着、runApp 不执行。改成 `unawaited`，注释标了「绝对不能 await」
+2. **定时提醒只有第一条生效**：`_win ??= WindowsReminder()..start()` 这种 cascade 配 `??=` 的写法，start 实际没在新建对象上执行，定时器根本没起来。拆成先建对象再 start
+3. **通知正文显示两遍**：插件把 title / body / subtitle 当三块分开渲染，body 又塞进 subtitle 就重复了。去掉 subtitle
+4. **点关闭直接退进程**：`setPreventClose(true)` 原来在窗口显示之后才挂，用户点关闭时还没生效。提到显示窗口之前挂
+5. **自测入口**：`chaomu.exe --selftest` 立刻弹一条通知，20 秒后再弹一条定时通知，用来验证 Toast 链路和调度器。必须排在 `rescheduleAll` 之后，否则会被它的 clear() 清掉
+
+### 工具
+
+1. tool/ 新增 5 个 Windows 窗口调试脚本：`click.py` / `click_at.py`（点击，DPI aware）、`shot_window.py`（窗口截图）、`diag_window.py`（窗口诊断）、`win_ctl.py`（窗口控制）
+
 ## 2.17.0+29 — 2026-10-18
 
 ### 新功能

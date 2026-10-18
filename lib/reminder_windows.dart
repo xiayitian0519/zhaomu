@@ -42,7 +42,11 @@ class WindowsReminder {
   bool get running => _timer != null;
 
   void start() {
-    _timer ??= Timer.periodic(_tick, (_) => _tickOnce());
+    _timer ??= Timer.periodic(_tick, (_) {
+      // ignore: avoid_print
+      print('[win-timer] tick, 待弹 $count 条');
+      _tickOnce();
+    });
   }
 
   void stop() {

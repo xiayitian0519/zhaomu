@@ -137,9 +137,12 @@ class Notifier {
       );
       _ready = true;
 
-      // Windows：插件的排程不可靠，改用它自己的定时比对（15 秒一拍）
+      // Windows：插件的排程不可靠，改用它自己的定时比对（15 秒一拍）。
+      // 注意别写成 `_win ??= X()..start()` —— cascade 和 ??= 的组合在
+      // Dart 里解析结果不是"在新建对象上调用 start"，实测定时器根本没起来。
       if (Platform.isWindows) {
-        _win ??= WindowsReminder(_showWinToast)..start();
+        _win ??= WindowsReminder(_showWinToast);
+        _win!.start();
       }
 
       // 冷启动：App 是被通知点开的
@@ -468,12 +471,14 @@ class Notifier {
   /// 故意不设 scenario：
   /// - `alarm` 会让系统循环播放闹钟音，Windows 上很吵（用户选的是系统默认提示音）；
   /// - `reminder` 必须配合后台任务 action 才生效，单独设了是无效属性。
+  ///
+  /// 也**不设 subtitle**：插件渲染时 title / body / subtitle 是分开的三块，
+  /// 把 body 再塞进 subtitle 会让同一句话显示两遍（2026-10-18 实测过）。
   fln.WindowsNotificationDetails _winDetails({
     required String title,
     required String body,
   }) =>
       fln.WindowsNotificationDetails(
-        subtitle: body.isEmpty ? null : body,
         // 默认几秒就收进操作中心，容易错过；long 会多停一会儿
         duration: fln.WindowsNotificationDuration.long,
       );
@@ -490,6 +495,10 @@ class Notifier {
         fln.NotificationDetails(windows: _winDetails(title: title, body: body)),
         payload: todoId,
       );
+      // 打日志便于排查「到点没反应」：能看到调度器确实触发了，
+      // 剩下的问题就只在系统通知开关上
+      // ignore: avoid_print
+      print('[win-toast] $title | 剩 ${_win?.count ?? 0} 条待弹');
     } catch (e) {
       lastScheduleError = 'Windows 弹窗失败：$e（多半是系统的通知权限被关了）';
     }

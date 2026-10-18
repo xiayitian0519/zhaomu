@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show Color, Size;
 
@@ -30,6 +31,12 @@ class WindowsShell with WindowListener, TrayListener {
     _inited = true;
 
     await windowManager.ensureInitialized();
+
+    // 关窗口拦截必须**在窗口显示之前**就挂上，否则用户点关闭时还没生效，
+    // 窗口直接关掉、进程退出，提醒也跟着没了。
+    await windowManager.setPreventClose(true);
+    windowManager.addListener(this);
+
     const WindowOptions options = WindowOptions(
       size: _defaultSize,
       minimumSize: _minSize,
@@ -39,13 +46,14 @@ class WindowsShell with WindowListener, TrayListener {
       skipTaskbar: false,
       titleBarStyle: TitleBarStyle.normal,
     );
-    await windowManager.waitUntilReadyToShow(options, () async {
+
+    // ⚠️ 这个 Future 要等第一帧渲染完才完成 —— **绝对不能 await**。
+    // await 的话 main() 会一直卡在这里，runApp 永远不执行，窗口一片空白
+    // （2026-10-18 踩过一次）。
+    unawaited(windowManager.waitUntilReadyToShow(options, () async {
       await windowManager.show();
       await windowManager.focus();
-    });
-    // 关窗口不退出 —— 交给 onWindowClose 收进托盘
-    await windowManager.setPreventClose(true);
-    windowManager.addListener(this);
+    }));
 
     await _setupTray();
   }
