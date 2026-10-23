@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -459,6 +461,51 @@ class _DetailPageState extends State<DetailPage> {
                       style: const TextStyle(fontSize: 12, color: Color(0xFF9A9A9A), height: 1.5),
                     ),
                   ),
+                  // 铃声入口（2026-10-21 用户要求）：本地音乐和系统自带的都在
+                  // 系统那个「待办提醒」渠道页里挑，跳过去由系统来选。
+                  //
+                  // 只对手机显示 —— Windows 的提醒走系统 Toast，响不响、响什么
+                  // 由系统的提示音设置管，没有「按 App 挑铃声」这回事。
+                  if (!Platform.isWindows)
+                    InkWell(
+                      onTap: () => _openRingtone(c),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 2, 20, 14),
+                        child: Row(
+                          children: const <Widget>[
+                            Icon(
+                              Icons.music_note_outlined,
+                              size: 18,
+                              color: Color(0xFF185FA5),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              '铃声',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '本地音乐 / 系统自带，所有提醒统一用',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF9A9A9A),
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: Color(0xFF9A9A9A),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
                     child: Text(
@@ -474,6 +521,26 @@ class _DetailPageState extends State<DetailPage> {
       ),
     );
     if (mounted) setState(() {});
+  }
+
+  /// 跳系统的「待办提醒」通知渠道页去挑铃声。
+  ///
+  /// 铃声归通知渠道管（渠道号 chaomu_remind_v8），不是逐条待办的字段 ——
+  /// 系统只给到「按渠道换声音」这一层，逐条换需要为每条待办开一个渠道，
+  /// 渠道一多用户的通知设置页就炸了，所以做成全局统一。
+  ///
+  /// 跳不过去（部分 ROM 把这个 Intent 屏蔽了）就退回手动路径，
+  /// 和设置页那一行说的完全一样，免得用户在两处看到两种说法。
+  Future<void> _openRingtone(BuildContext c) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(c);
+    final bool ok = await Notifier.I.openChannelSettings();
+    if (ok) return;
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('跳不过去。手动路径：设置 → 应用管理 → 朝暮 → 通知 → 待办提醒'),
+        duration: Duration(seconds: 8),
+      ),
+    );
   }
 
   // ---------------- 小组件 ----------------

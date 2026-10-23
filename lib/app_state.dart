@@ -110,6 +110,10 @@ class AppState extends ChangeNotifier {
   /// 存在这里是为了重启后还记着用户的选择。
   bool calendarListCollapsed = false;
 
+  /// 主页「逾期」组折叠起来没有（折叠成一行「逾期 · N 条未完成」）。
+  /// 存这里是为了重启后还记着。
+  bool overdueCollapsed = false;
+
   bool loaded = false;
 
   int _seq = 0;
@@ -200,6 +204,9 @@ class AppState extends ChangeNotifier {
     if (m['calendarListCollapsed'] is bool) {
       calendarListCollapsed = m['calendarListCollapsed'] as bool;
     }
+    if (m['overdueCollapsed'] is bool) {
+      overdueCollapsed = m['overdueCollapsed'] as bool;
+    }
     if (m['lastSeenVersion'] is String) {
       lastSeenVersion = m['lastSeenVersion'] as String;
     }
@@ -242,6 +249,7 @@ class AppState extends ChangeNotifier {
         'onboarded': onboarded,
         'guideDone': guideDone,
         'calendarListCollapsed': calendarListCollapsed,
+        'overdueCollapsed': overdueCollapsed,
         'lastSeenVersion': lastSeenVersion,
         'remindOnMigrated': remindOnMigrated,
         'historyMode': historyMode,
@@ -426,6 +434,10 @@ class AppState extends ChangeNotifier {
       }
       final DateTime d = dayOf(t.due!);
       if (d.isBefore(today)) {
+        // 逾期组同时收「已完成」和「未完成」（2026-10-21 用户要求）。
+        // 做完的那条不消失、位置不动，由列表画成灰字 + 删除线；
+        // 标题上的「N 条未完成」只数没做完的。
+        // 这条推翻了 2026-10-18 的「完成即移出逾期组」。
         overdue.add(t);
         continue;
       }
@@ -649,6 +661,13 @@ class AppState extends ChangeNotifier {
   /// 日历页「当日待办」列表折叠 / 展开
   Future<void> setCalendarListCollapsed(bool v) async {
     calendarListCollapsed = v;
+    notifyListeners();
+    await save();
+  }
+
+  /// 主页「逾期」组折叠 / 展开
+  Future<void> setOverdueCollapsed(bool v) async {
+    overdueCollapsed = v;
     notifyListeners();
     await save();
   }

@@ -148,17 +148,21 @@ class _CalendarPageState extends State<CalendarPage> {
   ///
   /// 规则（2026-10-17 定稿）：最小矩形 x = 1 列宽 × 1 档高；
   /// 字数超出 → **先宽 +1（步长 1 列，最大 3 列）→ 宽到顶还装不下 → 长 +1（无限）**。
-  /// 待办文字全部显示，无省略号。
+  ///
+  /// 2026-10-18 起每格最多显示 3 条，剩下的折叠成「还有 N 条」——
+  /// 之前全量显示，标题行数估算和渲染不一致时会溢出格子、盖到邻居格子。
   (int, int) _measureExp(List<Todo> show, double cellW, double unitH) {
     const double head = 26; // 上下 padding + 日期行 + 间隔
     const double lineH = _todoFontSize * _todoLineHeight;
     const double gap = 4;
+    const int maxShow = 3;
 
     if (show.isEmpty) return (1, 1);
 
+    final List<Todo> visible = show.take(maxShow).toList();
     double needH(double w) {
       double h = head;
-      for (final Todo t in show) {
+      for (final Todo t in visible) {
         h += _linesOf(t.title, w - 8) * lineH + gap;
       }
       return h;
@@ -199,7 +203,8 @@ class _CalendarPageState extends State<CalendarPage> {
       final DateTime day = DateTime(m.year, m.month, d);
       final List<Todo> show = _showOf(st.onDay(day));
       final (int cols, int span) = _measureExp(show, cellW, unitH);
-      out.add(_Placed(day, r, c, cols, span, show.length));
+      // 每格最多显示 3 条，超出的折叠成「还有 N 条」
+      out.add(_Placed(day, r, c, cols, span, show.length > 3 ? 3 : show.length));
       for (int dr = 0; dr < span; dr++) {
         for (int dc = 0; dc < cols; dc++) {
           (taken[r + dr] ??= <int>{}).add(c + dc);
@@ -336,6 +341,7 @@ class _CalendarPageState extends State<CalendarPage> {
     required List<Todo> items,
     required bool collapsed,
     int? maxShown,
+    VoidCallback? onTap,
   }) {
     final List<Todo> show = _showOf(items);
     final int maxShow = maxShown ?? show.length;
@@ -345,7 +351,7 @@ class _CalendarPageState extends State<CalendarPage> {
     final Color cellBg = _weekdayBg[tint - 1];
 
     return GestureDetector(
-      onTap: () => setState(() => _selected = d),
+      onTap: onTap ?? () => setState(() => _selected = d),
       child: Container(
         // 默认态格间留 2px 缝（原样）；展开态无缝紧贴
         // 两个态格子间都留 2px 缝（2026-10-17 恢复）
@@ -412,9 +418,12 @@ class _CalendarPageState extends State<CalendarPage> {
                 ),
               ),
             if (extra > 0)
-              const Align(
+              Align(
                 alignment: Alignment.centerRight,
-                child: Text('⋮', style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93))),
+                child: Text(
+                  '还有 $extra 条',
+                  style: const TextStyle(fontSize: 10, color: Color(0xFF8E8E93)),
+                ),
               ),
           ],
         ),
@@ -763,6 +772,7 @@ class _CalendarPageState extends State<CalendarPage> {
                                 items: st.onDay(p.day),
                                 collapsed: false,
                                 maxShown: p.maxShown,
+                                onTap: () => _showDaySheet(p.day),
                               ),
                             ),
                         ],
@@ -776,6 +786,81 @@ class _CalendarPageState extends State<CalendarPage> {
         } catch (e) {
           return _calErrBox('展开态计算出错', e);
         }
+      },
+    );
+  }
+
+  /// 展开态点格子 → 弹出当天完整待办浮层，格子之间从此不互相遮挡。
+  Future<void> _showDaySheet(DateTime d) async {
+    final AppState st = AppState.I;
+    final List<Todo> items = st.onDay(d);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (BuildContext c) {
+        return StatefulBuilder(
+          builder: (BuildContext c2, StateSetter setSheet) {
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(c2).size.height * 0.6,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+                      child: Text(
+                        '${d.month}月${d.day}日 · 星期${_weekdayNames[d.weekday - 1]} · ${items.length} 条',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2B2B2B),
+                        ),
+                      ),
+                    ),
+                    if (items.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          '这天没有待办',
+                          style: TextStyle(color: Color(0xFF9A9A9A)),
+                        ),
+                      ),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: <Widget>[
+                          for (final Todo t in items)
+                            ListTile(
+                              leading: DoneCircle(done: t.done),
+                              title: Text(
+                                t.title.isEmpty ? '（未命名）' : t.title,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: t.done
+                                      ? const Color(0xFF9A9A9A)
+                                      : const Color(0xFF1F1F1F),
+                                  decoration: (t.done && !st.noStrike)
+                                      ? TextDecoration.lineThrough
+                                      : TextDecoration.none,
+                                  decorationColor: const Color(0xFF9A9A9A),
+                                ),
+                              ),
+                              onTap: () {
+                                setSheet(() => st.toggleDone(t));
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }

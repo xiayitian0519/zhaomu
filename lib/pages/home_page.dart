@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -6,6 +8,7 @@ import '../models.dart';
 import '../notifier.dart';
 import '../updates.dart';
 import '../widgets.dart';
+import '../windows_shell.dart';
 import 'calendar_page.dart';
 import 'detail_page.dart';
 import 'done_page.dart';
@@ -24,6 +27,9 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final TextEditingController _input = TextEditingController();
   final FocusNode _focus = FocusNode();
+  final ScrollController _scroll = ScrollController();
+  final GlobalKey _todayKey = GlobalKey();
+  bool _scrolledToday = false;
 
   @override
   void initState() {
@@ -34,6 +40,21 @@ class _HomePageState extends State<HomePage> {
       maybeShowUpdateDialog(context);
       _maybeStartGuide();
     });
+    // 打开自动定位到「今天」卡片，省掉往下滑（2026-10-18 用户和陈栋聊定）
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday());
+  }
+
+  void _scrollToToday() {
+    if (!mounted || _scrolledToday) return;
+    final BuildContext? ctx = _todayKey.currentContext;
+    if (ctx == null) return;
+    _scrolledToday = true;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOut,
+    );
   }
 
   /// 首次进入主页时放一次界面引导（见 lib/guide.dart）。
@@ -49,6 +70,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _input.dispose();
     _focus.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -251,7 +273,39 @@ class _HomePageState extends State<HomePage> {
             PopupMenuItem<String>(value: 'settings', child: Text('设置')),
           ],
         ),
+        // 系统标题栏那个 × 又细又靠边，用户看不清；而且点它只是收进托盘，
+        // 容易被当成「没关掉」（2026-10-21）。所以在 App 自己的标题栏
+        // 再放一套大一号的 − 和 ×，带 tooltip 说明点了到底发生什么。
+        // 只在 Windows 出现 —— 手机上没有窗口概念。
+        if (Platform.isWindows) ...<Widget>[
+          _winBtn(
+            Icons.remove,
+            '最小化到任务栏',
+            () => WindowsShell.I.minimize(),
+          ),
+          _winBtn(
+            Icons.close,
+            '收进托盘（进程留着，提醒照常响）',
+            () => WindowsShell.I.hideToTray(),
+          ),
+        ],
       ],
+    );
+  }
+
+  /// Windows 标题栏上的窗口按钮（− 和 ×）。
+  ///
+  /// 撑到 34×34 的点击区，比系统按钮大一圈，手指/鼠标都好点。
+  Widget _winBtn(IconData icon, String tip, VoidCallback onTap) {
+    return IconButton(
+      tooltip: tip,
+      onPressed: onTap,
+      iconSize: 20,
+      splashRadius: 18,
+      color: const Color(0xFF3C3C3C),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+      icon: Icon(icon),
     );
   }
 
@@ -259,7 +313,33 @@ class _HomePageState extends State<HomePage> {
   ///
   /// 独立圆角卡片 + 自己的小标题，把今天的待办从本月其余里拎出来。
   /// 卡片后面由调用方补一个 [SizedBox] 当"空一行"。
-  Widget _todayCard(String title, List<Todo> items, {bool anchorEdit = false}) => Container(
+  Widget _overdueBar(TodoGroup g) {
+    final AppState st = AppState.I;
+    return InkWell(
+      onTap: () => st.setOverdueCollapsed(false),
+      child: Container(
+        color: const Color(0xFFF7F7F8),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: Row(
+          children: <Widget>[
+            Text(
+              '逾期 · ${g.items.where((Todo t) => !t.done).length} 条未完成',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFFA32D2D),
+              ),
+            ),
+            const Spacer(),
+            const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFFA32D2D)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _todayCard(String title, List<Todo> items, {bool anchorEdit = false, Key? key}) => Container(
+        key: key,
         margin: const EdgeInsets.fromLTRB(10, 4, 10, 0),
         decoration: BoxDecoration(
           border: Border.all(color: const Color(0xFFB5D4F4)),
@@ -448,18 +528,54 @@ class _HomePageState extends State<HomePage> {
           // 引导要指"第一条待办的铅笔"，只在第一个画出来的行上挂锚点
           bool anchorGiven = false;
           for (final TodoGroup g in groups) {
+            final bool isOverdue = g.title == '逾期';
+            // 逾期组折叠：只画一行「逾期 · N 条未完成」，点一下展开
+            if (isOverdue && st.overdueCollapsed) {
+              children.add(_overdueBar(g));
+              first = false;
+              continue;
+            }
             children.add(
               GroupHeader(
                 title: g.title,
                 colorValue: g.colorValue,
                 showSort: first,
+                onTap: isOverdue ? () => st.setOverdueCollapsed(true) : null,
+                trailing: isOverdue
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          // 展开态也要报「还剩几条没做完」—— 逾期组现在同时装
+                          // 已完成和未完成，光看标题数不出到底还有多少要干。
+                          // 说法跟折叠态的 _overdueBar 保持一致。
+                          Text(
+                            '· ${g.items.where((Todo t) => !t.done).length} 条未完成',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF9A9A9A),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.keyboard_arrow_up,
+                            size: 18,
+                            color: Color(0xFFA32D2D),
+                          ),
+                        ],
+                      )
+                    : null,
               ),
             );
             first = false;
             // 本月组：先画「今日」小卡片，空一行，再画本月其余
             final List<Todo>? pin = g.pinItems;
             if (pin != null && pin.isNotEmpty) {
-              children.add(_todayCard(g.pinTitle ?? '今天', pin, anchorEdit: !anchorGiven));
+              children.add(_todayCard(
+                g.pinTitle ?? '今天',
+                pin,
+                anchorEdit: !anchorGiven,
+                key: _todayKey,
+              ));
               anchorGiven = true;
               children.add(const SizedBox(height: 10));
             }
@@ -476,6 +592,7 @@ class _HomePageState extends State<HomePage> {
             children: <Widget>[
               Expanded(
                 child: ListView(
+                  controller: _scroll,
                   padding: const EdgeInsets.only(bottom: 12),
                   children: children,
                 ),

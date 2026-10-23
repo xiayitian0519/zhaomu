@@ -171,6 +171,18 @@ class SettingsPage extends StatelessWidget {
               onTap: () => Navigator.of(c).pop('history'),
             ),
             const Divider(height: 1),
+            // 上面两份都是「报告」—— 给人看、喂知识库用的，字段是 done/undone，
+            // **导不回来**。真正能导入的只有这一份完整备份（2026-10-18 补）。
+            ListTile(
+              leading: const Icon(Icons.backup_outlined, color: Color(0xFF185FA5)),
+              title: const Text('完整备份（可导入）', style: TextStyle(fontSize: 14)),
+              subtitle: const Text(
+                '全部数据原样打包，换机 / 手机电脑互传只认这份',
+                style: TextStyle(fontSize: 12),
+              ),
+              onTap: () => Navigator.of(c).pop('backup'),
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.ios_share, color: Color(0xFF5F5E5A)),
               title: const Text('两份一起导出', style: TextStyle(fontSize: 14)),
@@ -203,6 +215,10 @@ class SettingsPage extends StatelessWidget {
     }
     if (choice == 'history' || choice == 'both') {
       await writeOne('朝暮-历史待办-$stamp', st.historyExportData());
+    }
+    // 完整备份：就是 chaomu.json 本身，导入端只认这个结构
+    if (choice == 'backup') {
+      await writeOne('朝暮-完整备份-$stamp', st.toData());
     }
 
     if (!context.mounted) return;
@@ -386,12 +402,44 @@ class SettingsPage extends StatelessWidget {
     String fileName,
     Map<String, dynamic> data,
   ) async {
-    final int todoCount =
-        (data['todos'] is List) ? (data['todos'] as List<dynamic>).length : 0;
+    // 报告文件（历史待办 / 复盘总结）里没有 todos 键，导进来一定是空操作。
+    // 与其让用户点了「覆盖导入」再吃一个失败提示，不如在这儿就说清楚。
+    if (data['todos'] is! List) {
+      final String kind = switch (data['kind']) {
+        'history' => '「历史待办」报告',
+        'review' => '「复盘总结」报告',
+        _ => '这份 json',
+      };
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext c) => AlertDialog(
+          title: const Text('这份文件不能导入', style: TextStyle(fontSize: 16)),
+          content: Text(
+            '$kind 是给人看 / 喂知识库的文本，里面没有可还原的待办数据。\n\n'
+            '要备份或换设备，请在原设备的「设置 → 导出数据」里选'
+            '「完整备份（可导入）」，再把那份 json 拿过来。',
+            style: const TextStyle(fontSize: 13, height: 1.7),
+          ),
+          actions: <Widget>[
+            FilledButton(
+              onPressed: () => Navigator.of(c).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    final int todoCount = (data['todos'] as List<dynamic>).length;
     final int tdlDays = (data['tdl'] is Map) ? (data['tdl'] as Map<dynamic, dynamic>).length : 0;
     final int reviewCount =
         (data['reviewNotes'] is Map) ? (data['reviewNotes'] as Map<dynamic, dynamic>).length : 0;
     final String stamp = '${data['exportedAt'] ?? '未知时间'}';
+    // 空备份导进来 = 把当前数据清空，必须让人看清
+    final String emptyWarn = todoCount == 0
+        ? '\n注意：这份备份里一条待办都没有，导入会把当前数据清空。\n'
+        : '';
 
     final bool? ok = await showDialog<bool>(
       context: context,
@@ -404,9 +452,14 @@ class SettingsPage extends StatelessWidget {
             '里面有：\n'
             '· 待办 $todoCount 条\n'
             '· TDL 时间表 $tdlDays 天\n'
-            '· 复盘总结 $reviewCount 篇\n\n'
+            '· 复盘总结 $reviewCount 篇\n'
+            '$emptyWarn\n'
             '导入会覆盖当前所有数据，覆盖之后没法撤销。',
-            style: const TextStyle(fontSize: 13, height: 1.7),
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.7,
+              color: todoCount == 0 ? const Color(0xFFA32D2D) : null,
+            ),
           ),
         ),
         actions: <Widget>[
@@ -414,7 +467,7 @@ class SettingsPage extends StatelessWidget {
           FilledButton(
             onPressed: () => Navigator.of(c).pop(true),
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFFA32D2D)),
-            child: const Text('覆盖导入'),
+            child: Text(todoCount == 0 ? '仍然覆盖' : '覆盖导入'),
           ),
         ],
       ),
@@ -647,13 +700,19 @@ class SettingsPage extends StatelessWidget {
                 ),
                 ListTile(
                   title: const Text('导出数据', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text('复盘总结 / 历史待办分开导出，可直接分享', style: TextStyle(fontSize: 12)),
+                  subtitle: const Text(
+                    '完整备份（可导入）/ 复盘总结 / 历史待办',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => _export(context),
                 ),
                 ListTile(
                   title: const Text('导入数据', style: TextStyle(fontSize: 14)),
-                  subtitle: const Text('从文件管理器选一份导出的 json，覆盖当前数据', style: TextStyle(fontSize: 12)),
+                  subtitle: const Text(
+                    '只能选「完整备份」导出的 json，报告文件导不进来',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => _import(context),
                 ),

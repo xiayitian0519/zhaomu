@@ -20,7 +20,12 @@ def enum_cb(hwnd, _):
     buf = ctypes.create_unicode_buffer(n + 1)
     user32.GetWindowTextW(hwnd, buf, n + 1)
     title = buf.value
-    if "朝暮" in title or "chaomu" in title.lower():
+    # 只认 Flutter 的窗口类：光看标题会把 D:\chaomu 的资源管理器也匹配进来
+    cls = ctypes.create_unicode_buffer(256)
+    user32.GetClassNameW(hwnd, cls, 256)
+    if cls.value == "FLUTTER_RUNNER_WIN32_WINDOW" and (
+        "朝暮" in title or "chaomu" in title.lower()
+    ):
         rect = wintypes.RECT()
         user32.GetWindowRect(hwnd, ctypes.byref(rect))
         w = rect.right - rect.left

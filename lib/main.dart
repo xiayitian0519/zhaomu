@@ -77,6 +77,32 @@ Future<void> main(List<String> args) async {
         '${Notifier.I.windowsReminder?.count} 条');
   }
 
+  // 调试入口：`chaomu.exe --settings` 启动后直接进设置页，方便截图/排查
+  if (args.contains('--settings')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+      );
+    });
+  }
+  // 调试入口：`chaomu.exe --calendar` 启动后直接进日历页
+  if (args.contains('--calendar')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
+      );
+    });
+  }
+
+  // 调试入口：`chaomu.exe --traymenu` 启动 3 秒后走一遍托盘右键回调，
+  // 用来确认「右键是不是真能弹出菜单」（2026-10-21 排查「关不掉后台」）。
+  // 走的是 onTrayIconRightMouseUp 本身，不是另开一条路，所以验的就是真实逻辑。
+  if (args.contains('--traymenu')) {
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      WindowsShell.I.onTrayIconRightMouseUp();
+    });
+  }
+
   runApp(const ChaomuApp());
 }
 

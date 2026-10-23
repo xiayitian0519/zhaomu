@@ -1,0 +1,44 @@
+<svg width="100%" viewBox="0 0 680 366" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>朝暮 电脑端 vs 手机端 功能差异</title>
+<desc>手机独有 / 两端共有 / 电脑独有 三类功能对比，以及提醒机制差异</desc>
+<text x="340" y="24" font-family="sans-serif" font-size="16" font-weight="600" fill="#2C2C2A" text-anchor="middle">朝暮 · 两端功能差异（v2.17.1）</text>
+
+<rect x="20" y="40" width="200" height="238" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.6"/>
+<rect x="20" y="40" width="200" height="32" rx="8" fill="#185FA5"/>
+<text x="120" y="56" font-family="sans-serif" font-size="13.5" font-weight="600" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">手机端独有</text>
+<g font-family="sans-serif" font-size="12.5" fill="#0C447C">
+<circle cx="32" cy="88" r="2.5" fill="#185FA5"/><text x="40" y="88" dominant-baseline="central">4 个内置铃声 + 本地铃声</text>
+<circle cx="32" cy="116" r="2.5" fill="#185FA5"/><text x="40" y="116" dominant-baseline="central">权限中心（通知/闹钟/自启等）</text>
+<circle cx="32" cy="144" r="2.5" fill="#185FA5"/><text x="40" y="144" dominant-baseline="central">全屏闹钟</text>
+<circle cx="32" cy="172" r="2.5" fill="#185FA5"/><text x="40" y="172" dominant-baseline="central">通知渠道分 声/震/悬浮</text>
+<circle cx="32" cy="200" r="2.5" fill="#185FA5"/><text x="40" y="200" dominant-baseline="central">锁屏显示通知</text>
+</g>
+
+<rect x="240" y="40" width="200" height="238" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.6"/>
+<rect x="240" y="40" width="200" height="32" rx="8" fill="#5F5E5A"/>
+<text x="340" y="56" font-family="sans-serif" font-size="13.5" font-weight="600" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">两端共有</text>
+<g font-family="sans-serif" font-size="12.5" fill="#2C2C2A">
+<circle cx="252" cy="88" r="2.5" fill="#5F5E5A"/><text x="260" y="88" dominant-baseline="central">待办 · 四象限 · 清单</text>
+<circle cx="252" cy="116" r="2.5" fill="#5F5E5A"/><text x="260" y="116" dominant-baseline="central">日历 / 月视图</text>
+<circle cx="252" cy="144" r="2.5" fill="#5F5E5A"/><text x="260" y="144" dominant-baseline="central">TDL 时间表</text>
+<circle cx="252" cy="172" r="2.5" fill="#5F5E5A"/><text x="260" y="172" dominant-baseline="central">复盘总结</text>
+<circle cx="252" cy="200" r="2.5" fill="#5F5E5A"/><text x="260" y="200" dominant-baseline="central">到点提醒</text>
+<circle cx="252" cy="228" r="2.5" fill="#5F5E5A"/><text x="260" y="228" dominant-baseline="central">完整备份 导出 / 导入</text>
+</g>
+
+<rect x="460" y="40" width="200" height="238" rx="8" fill="#E3F2EC" stroke="#3F7D42" stroke-width="0.6"/>
+<rect x="460" y="40" width="200" height="32" rx="8" fill="#3F7D42"/>
+<text x="560" y="56" font-family="sans-serif" font-size="13.5" font-weight="600" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">电脑端独有</text>
+<g font-family="sans-serif" font-size="12.5" fill="#1F4D27">
+<circle cx="472" cy="88" r="2.5" fill="#3F7D42"/><text x="480" y="88" dominant-baseline="central">托盘常驻（关窗不退出）</text>
+<circle cx="472" cy="116" r="2.5" fill="#3F7D42"/><text x="480" y="116" dominant-baseline="central">开机自启</text>
+<circle cx="472" cy="144" r="2.5" fill="#3F7D42"/><text x="480" y="144" dominant-baseline="central">手机比例窗口 430×900</text>
+<circle cx="472" cy="172" r="2.5" fill="#3F7D42"/><text x="480" y="172" dominant-baseline="central">App 内定时提醒（15 秒）</text>
+<circle cx="472" cy="200" r="2.5" fill="#3F7D42"/><text x="480" y="200" dominant-baseline="central">关机错过 · 开机补弹</text>
+</g>
+
+<rect x="20" y="292" width="640" height="58" rx="8" fill="#FBF6EC" stroke="#B8860B" stroke-width="0.6"/>
+<text x="34" y="314" font-family="sans-serif" font-size="13" font-weight="600" fill="#7A5B08" dominant-baseline="central">提醒机制差异（这是两端最大的不同）</text>
+<text x="34" y="336" font-family="sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">手机：系统精确闹钟 + 全屏闹钟 + 权限保活（关机也能到点响）</text>
+<text x="34" y="348" font-family="sans-serif" font-size="12" fill="#5F5E5A" dominant-baseline="central">电脑：App 内 15 秒轮询 + 托盘常驻保活（关机错过的开机补一条）</text>
+</svg>

@@ -100,6 +100,16 @@ class WindowsShell with WindowListener, TrayListener {
     _reveal();
   }
 
+  /// 托盘右键必须自己弹菜单 —— 0.8.0 的原生层只上报点击事件，
+  /// 不会自动弹。少这一行的话右键毫无反应，「退出」入口就消失了，
+  /// 用户只能去任务管理器杀进程（2026-10-21 用户报「旧版关不了后台」）。
+  ///
+  /// ⚠️ 是 `...RightMouseUp` 不是 `...RightClick`，后者这个版本压根不触发。
+  @override
+  void onTrayIconRightMouseUp() {
+    trayManager.popUpContextMenu();
+  }
+
   @override
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {
@@ -113,6 +123,24 @@ class WindowsShell with WindowListener, TrayListener {
   Future<void> _reveal() async {
     await windowManager.show();
     await windowManager.focus();
+  }
+
+  /// App 标题栏上那个「−」：最小化到任务栏，进程留着继续走提醒。
+  Future<void> minimize() async {
+    if (!Platform.isWindows) return;
+    try {
+      await windowManager.minimize();
+    } catch (_) {}
+  }
+
+  /// App 标题栏上那个「×」：收进托盘（和系统标题栏的 × 同一个结果）。
+  ///
+  /// 不真的退出 —— 退出后定时器就没了，提醒永远等不到。
+  Future<void> hideToTray() async {
+    if (!Platform.isWindows) return;
+    try {
+      await windowManager.hide();
+    } catch (_) {}
   }
 
   // ---------------- 关窗口 = 收进托盘 ----------------

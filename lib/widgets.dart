@@ -322,40 +322,55 @@ class GroupHeader extends StatelessWidget {
     required this.title,
     required this.colorValue,
     this.showSort = false,
+    this.onTap,
+    this.trailing,
   });
 
   final String title;
   final int colorValue;
   final bool showSort;
 
+  /// 点整个标题行（逾期组用来折叠/展开）
+  final VoidCallback? onTap;
+
+  /// 标题右侧的小部件（逾期组放收起箭头）
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     final AppState st = AppState.I;
-    return Container(
-      color: const Color(0xFFF7F7F8),
-      padding: const EdgeInsets.fromLTRB(14, 14, 6, 6),
-      child: Row(
-        children: <Widget>[
-          Text(
-            title,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(colorValue)),
-          ),
-          const Spacer(),
-          if (showSort)
-            TextButton(
-              onPressed: () {
-                st.setSortMode(st.sortMode == 'time' ? 'priority' : 'time');
-              },
-              style: TextButton.styleFrom(
-                minimumSize: const Size(0, 30),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: const Color(0xFF5F5E5A),
-                textStyle: const TextStyle(fontSize: 12),
-              ),
-              child: Text(st.sortMode == 'time' ? '排序：时间' : '排序：优先级'),
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: const Color(0xFFF7F7F8),
+        padding: const EdgeInsets.fromLTRB(14, 14, 6, 6),
+        child: Row(
+          children: <Widget>[
+            Text(
+              title,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(colorValue)),
             ),
-        ],
+            if (trailing != null) ...<Widget>[
+              const SizedBox(width: 8),
+              trailing!,
+            ],
+            const Spacer(),
+            if (showSort)
+              TextButton(
+                onPressed: () {
+                  st.setSortMode(st.sortMode == 'time' ? 'priority' : 'time');
+                },
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 30),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: const Color(0xFF5F5E5A),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+                child: Text(st.sortMode == 'time' ? '排序：时间' : '排序：优先级'),
+              ),
+          ],
+        ),
       ),
     );
   }
