@@ -13,3 +13,11 @@ android/app/.cxx/
 # JVM 崩溃日志（编译 OOM 时产生，2026-10-25 出现过 4 个）
 hs_err_pid*.log
 replay_pid*.log
+
+# 内部协作文档：只留本地，不进公开仓库（2026-10-26 仓库转公开后调整）
+统筹看板.md
+项目记忆-共享.md
+接口契约-*.md
+朝暮-源码全览.md
+commitmsg.txt
+_build_pubget.log
