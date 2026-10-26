@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.18.1+32
+version: 2.21.2+43
 
 environment:
   sdk: ^3.13.0
@@ -50,8 +50,17 @@ dependencies:
   flutter_local_notifications: ^19.4.2
   timezone: ^0.10.1
 
-  # 导入数据时选 json 文件
+  # 导入数据时选 json 文件（选铃声文件也用它）
   file_picker: ^13.1.0
+
+  # 播放提醒铃声。Windows 走 audioplayers_windows（Media Foundation），
+  # 支持 mp3 / wav / m4a / flac / aac。
+  #
+  # 为什么必须自己播：Windows 通知（Toast）的自定义音频只在 MSIX 安装包里生效，
+  # 朝暮是免安装 exe，asset() 会 fallback 成系统预设音。详见 notifier.dart 的
+  # _winDetails() 注释。
+  audioplayers: ^6.8.1
+
 
   # 跳转系统设置页（权限引导）
   android_intent_plus: ^6.1.0
@@ -94,6 +103,9 @@ flutter:
   # 托盘图标（= Windows exe 图标，运行时会复制到临时目录再交给托盘）
   assets:
     - assets/app_icon.ico
+    # 七款内置提醒铃声，全部 1.5~3 秒，合计约 880 KB。
+    # 文件名为英文键值，与 SoundLib.builtin 里的 id 一一对应。
+    - assets/ringtones/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

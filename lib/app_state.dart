@@ -90,6 +90,12 @@ class AppState extends ChangeNotifier {
   /// 提醒形态：RemindStyle.banner / RemindStyle.fullScreen
   String remindStyle = 'banner';
 
+  /// 全局默认铃声（见 SoundLibrary）。
+  ///
+  /// 空字符串 = 系统默认通知音。没单独设过铃声的待办都响这个。
+  /// 2026-10-23 加，老存档没有这个键 → 读成空 → 系统默认音，不用迁移。
+  String defaultSoundId = '';
+
   /// 最后一次弹出「今天都做完了」的日期，避免反复打扰
   String lastReviewPrompt = '';
 
@@ -201,6 +207,11 @@ class AppState extends ChangeNotifier {
       final String v = m['remindStyle'] as String;
       remindStyle = (v == 'fullscreen') ? 'fullscreen' : 'banner';
     }
+    // 字段只为存档兼容保留：2026-10-23 晚起铃声统一交给系统渠道，
+    // App 内不再有铃声库，读进来原样存着不再使用。
+    if (m['defaultSoundId'] is String) {
+      defaultSoundId = m['defaultSoundId'] as String;
+    }
     if (m['calendarListCollapsed'] is bool) {
       calendarListCollapsed = m['calendarListCollapsed'] as bool;
     }
@@ -265,6 +276,7 @@ class AppState extends ChangeNotifier {
         'defaultRemindOn': defaultRemindOn,
         'defaultAheadMinutes': defaultAheadMinutes,
         'remindStyle': remindStyle,
+        'defaultSoundId': defaultSoundId,
       };
 
   Future<void> save() async {
@@ -366,11 +378,84 @@ class AppState extends ChangeNotifier {
   // 数据层的 `lists` / `Todo.listName` 保留，只为兼容老存档里的 'lists' / 'list'
   // 两个 json 字段；界面上已无任何入口，新建待办一律落在 `defaultListName`。
 
-  Future<void> toggleDone(Todo t) async {
+  Future<Todo?> toggleDone(Todo t) async {
+    final bool wasDone = t.done;
     t.done = !t.done;
     t.doneAt = t.done ? DateTime.now() : null;
+
+    // 完成一条重复待办 → 按规则生成下一条（2026-10-24 补）。
+    // 之前 repeat 只是存了个字符串，代码里没有任何地方读它，
+    // 所以设了「每天」第二天也不会出现 —— 用户报的就是这个。
+    Todo? next;
+    if (!wasDone && t.done) {
+      next = _spawnRepeat(t);
+    }
+
     notifyListeners();
     await save();
+
+    // 新生成的那条要排提醒。AppState 不认识 Notifier（会循环依赖），
+    // 所以由 main.dart 注入回调，所有入口（主页 / 日历 / 已完成页）都能覆盖到。
+    if (next != null) onRepeatSpawned?.call(next);
+    return next;
+  }
+
+  /// 重复待办完成后生成的下一条，交给外部排提醒
+  void Function(Todo t)? onRepeatSpawned;
+
+  /// 按重复规则生成下一条。不重复 / 没有任何时间参照时返回 null。
+  ///
+  /// 规则：把 `due`（没有就看 `remind`）按规则往后推一格，
+  /// `remind` 跟着平移同样的时长 —— 这样「提前 10 分钟提醒」在新一条上依然成立。
+  Todo? _spawnRepeat(Todo t) {
+    if (t.repeat == RepeatRule.none) return null;
+    final DateTime? base = t.due ?? t.remind;
+    if (base == null) return null;
+    final DateTime nextBase = _nextRepeatDate(base, t);
+    if (!nextBase.isAfter(base)) return null;
+    final Duration shift = nextBase.difference(base);
+
+    final Todo n = t.clone();
+    n.id = newId();
+    n.done = false;
+    n.doneAt = null;
+    n.created = DateTime.now();
+    n.due = t.due == null ? null : nextBase;
+    n.remind = t.remind == null ? null : t.remind!.add(shift);
+    todos.add(n);
+    return n;
+  }
+
+  /// 算下一次的日期，时分保持不变
+  static DateTime _nextRepeatDate(DateTime base, Todo t) {
+    switch (t.repeat) {
+      case '每天':
+        return base.add(const Duration(days: 1));
+      case '每周':
+        return base.add(const Duration(days: 7));
+      case '每月':
+        return _addMonths(base, 1);
+      case '每年':
+        return _addMonths(base, 12);
+      case RepeatRule.custom:
+        // 在 repeatDays 里找下一个够得着的天号，最多往后找两个月
+        for (int i = 1; i <= 62; i++) {
+          final DateTime d = base.add(Duration(days: i));
+          if (t.repeatDays.contains(d.day)) return d;
+        }
+        return base.add(const Duration(days: 1));
+      default:
+        return base.add(const Duration(days: 1));
+    }
+  }
+
+  /// 加月份。1月31日 + 1 个月 = 2月28/29（自动落到目标月的最后一天）
+  static DateTime _addMonths(DateTime d, int months) {
+    final int total = d.month - 1 + months;
+    final int y = d.year + total ~/ 12;
+    final int m = total % 12 + 1;
+    final int lastDay = DateTime(y, m + 1, 0).day;
+    return DateTime(y, m, d.day > lastDay ? lastDay : d.day, d.hour, d.minute);
   }
 
   Future<void> remove(Todo t) async {
@@ -627,6 +712,16 @@ class AppState extends ChangeNotifier {
   /// 提醒形态：banner / fullscreen
   Future<void> setRemindStyle(String v) async {
     remindStyle = (v == 'fullscreen') ? 'fullscreen' : 'banner';
+    notifyListeners();
+    await save();
+  }
+
+  /// 全局默认铃声。空串 = 系统默认通知音；认不出来的 id 也回落成空串。
+  ///
+  /// 改完要重排全部提醒 —— 排程时就已经把声音定死在通知里了（Android 的
+  /// zonedSchedule 是提前把通知交给系统），不重排老提醒还是响旧的。
+  Future<void> setDefaultSoundId(String v) async {
+    defaultSoundId = v;
     notifyListeners();
     await save();
   }

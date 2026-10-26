@@ -11,6 +11,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'app_state.dart';
 import 'models.dart';
 import 'reminder_windows.dart';
+import 'sound_lib.dart';
+import 'sound_player.dart';
 
 /// 提醒到点时怎么弹。存的是字符串，方便写进 json。
 class RemindStyle {
@@ -75,7 +77,22 @@ class Notifier {
   ///        而 Android 渠道声音是「一次设定永久固化」，优先级**高于**单条通知的 sound
   ///        —— 所以用户选木琴，响的永远是风铃。v8 让渠道只说「有声音」，
   ///        具体哪一款由每次 show() 时的 AndroidNotificationDetails.sound 决定。
-  static const String _channelId = 'chaomu_remind_v8';
+  /// 8. v9（2026-10-23）：真正开始用「每条通知自带 sound」。
+  ///        v8 虽然把渠道的 sound 去掉了，但用户只要在系统「通知 → 待办提醒」里
+  ///        手动改过一次，那条渠道就被系统写上了 sound，之后单条通知的声音又会被
+  ///        渠道覆盖。v9 换个新渠道重新开始，并且 App 内不再提供「跳系统页改铃声」
+  ///        的入口（改走 设置 → 默认铃声 / 详情页 → 铃声）。
+  /// 9. v10（2026-10-23 晚）：**渠道必须自带 sound**。
+  ///        v9 只写了 playSound: true、没给 sound，MIUI 直接把渠道声音显示成「无」，
+  ///        结果所有提醒一声不响 —— 单条通知的 sound 在这种静音渠道上也不生效。
+  ///        这是实测出来的：系统「待办提醒 → 声音」里写着「无」。
+  ///        v10 建渠道时就钉死一个默认铃声（俏皮成功），保证开箱有声音；
+  ///        用户想换，让他去系统那个「声音」页挑 —— 那页面里能看到我们注册进去的 7 个。
+  static const String _channelId = 'chaomu_remind_v10';
+
+  /// 渠道的默认铃声。这个 id 必须和 res/raw 里的文件名一致。
+  /// ⚠️ 渠道声音一旦创建就固化，换这个值必须同时升 [_channelId]。
+  static const String _channelDefaultSound = 'sound_cheerful';
   /// 渠道名。**不带版本号** —— 用户在系统设置里看到的就是这个，
   /// 带 v7/v8 会让人困惑。内部靠 [_channelId] 区分版本即可。
   /// （同名渠道共存的老问题由「先删后建」解决，见 [_ensureChannel]）
@@ -235,6 +252,8 @@ class Notifier {
         'chaomu_remind_v5',
         'chaomu_remind_v6',
         'chaomu_remind_v7',
+        'chaomu_remind_v8',
+        'chaomu_remind_v9',
       ]) {
         try {
           await a.deleteNotificationChannel(old);
@@ -243,17 +262,17 @@ class Notifier {
 
       // 2. 再建当前渠道。渠道名不带版本号（用户看到的是「待办提醒」），
       //    版本只体现在 [_channelId] 上。
-      //    ⚠️ **这里故意不给 sound**：渠道一旦带上 sound，Android 就把它固化成
-      //    「这个渠道的音色」，且优先级高于单条通知的 sound —— 之后用户在 app 里
-      //    换铃声（风铃→木琴）完全没用，响的永远是渠道里那个。所以渠道只声明
-      //    「有声音 + 有震动」，具体哪一款由发通知时 [_details] 里的 sound 决定。
+      //    ⚠️ v10 起**必须给 sound**：单写 playSound: true 而不给声音，
+      //    MIUI 会把渠道声音显示成「无」，提醒全程静音（v9 就栽在这）。
+      //    代价是渠道声音被固化 —— 用户要换只能在系统那个「声音」页里换，
+      //    App 内没法逐条区分。这是 MIUI 的规矩，绕不过去。
       await a.createNotificationChannel(
         fln.AndroidNotificationChannel(
           _channelId,
           _channelName,
           description: _channelDesc,
           importance: fln.Importance.max,
-          // 渠道层允许出声；真正响不响、响哪款，看每条通知自己的设置
+          sound: fln.RawResourceAndroidNotificationSound(_channelDefaultSound),
           playSound: true,
           enableVibration: true,
           showBadge: true,
@@ -414,10 +433,10 @@ class Notifier {
     bool soundOn = true,
     String title = '',
     String body = '',
+    String soundId = '',
   }) {
-    // 出声 = 设置里的「默认打开铃声」开着。响哪首歌由系统通知渠道设置决定
-    // （2026-10-16 起铃声全部交给系统渠道：在渠道声音里挑本地/在线铃声），
-    // 这里不再指定 sound，playSound: true 就是「用渠道里选的那首」。
+    // 出声 = 设置里的「默认打开铃声」开着。
+    // 响哪一款由 [soundId] 决定（渠道 v9 不带 sound，所以单条通知说了算）。
     final bool ring = soundOn;
     return fln.NotificationDetails(
       android: fln.AndroidNotificationDetails(
@@ -428,8 +447,9 @@ class Notifier {
         // 注意：fln.Priority 是通知优先级，不是朝暮自己的四象限 Priority
         priority: fln.Priority.max,
         playSound: ring,
-        // 铃声不在这指定 —— 用系统渠道设置里选的那首（方案 A，2026-10-16）。
-        // 渠道 v8 本来就没写死 sound，不传 sound 就是渠道配置的声音。
+        // 不传 sound：响哪个由渠道决定（v10 建的时候就钉了一个默认铃声，
+        // 用户可以在系统「待办提醒 → 声音」里换成任意系统铃声）。
+        // 这里再传一次没意义 —— 渠道声音优先级更高，会被忽略。
         // 震动独立于铃声：不出声也要震
         enableVibration: true,
         // 锁屏也显示内容（否则锁屏只显示"已隐藏内容"，等于没提醒）
@@ -462,7 +482,12 @@ class Notifier {
         presentBadge: true,
         interruptionLevel: fln.InterruptionLevel.timeSensitive,
       ),
-      windows: _winDetails(title: title, body: body),
+      windows: _winDetails(
+        title: title,
+        body: body,
+        soundId: soundId,
+        soundOn: soundOn,
+      ),
     );
   }
 
@@ -474,31 +499,109 @@ class Notifier {
   ///
   /// 也**不设 subtitle**：插件渲染时 title / body / subtitle 是分开的三块，
   /// 把 body 再塞进 subtitle 会让同一句话显示两遍（2026-10-18 实测过）。
+  ///
+  /// 声音分两支（2026-10-25 加）：
+  /// 1. soundId 是 preset:* 或空 → 让 Toast 自己播系统音，App 不插手；
+  /// 2. 其他（内置 / 系统 wav / 导入 / 引用）→ **Toast 必须静音**，
+  ///    由 SoundPlayer 播。不静音就是系统提示音 + 自播音叠成两声。
+  ///
+  /// 为什么自定义铃声不能直接塞进 Toast：flutter_local_notifications_windows
+  /// 1.0.3 的 `WindowsNotificationAudio.asset()` 只在打包成 MSIX 安装包时生效，
+  /// 非 MSIX 会 fallback 回预设音。朝暮是免安装 exe，走那条路等于白设。
   fln.WindowsNotificationDetails _winDetails({
     required String title,
     required String body,
-  }) =>
-      fln.WindowsNotificationDetails(
-        // 默认几秒就收进操作中心，容易错过；long 会多停一会儿
-        duration: fln.WindowsNotificationDuration.long,
+    String soundId = '',
+    bool soundOn = true,
+  }) {
+    fln.WindowsNotificationAudio audio;
+    if (!soundOn || _appPlaysIt(soundId)) {
+      audio = fln.WindowsNotificationAudio.silent();
+    } else {
+      audio = fln.WindowsNotificationAudio.preset(
+        sound: _presetMap[soundId] ?? fln.WindowsNotificationSound.defaultSound,
       );
+    }
+    return fln.WindowsNotificationDetails(
+      // 默认几秒就收进操作中心，容易错过；long 会多停一会儿
+      duration: fln.WindowsNotificationDuration.long,
+      audio: audio,
+    );
+  }
+
+  /// 交给 Toast 自己播的预设音。
+  ///
+  /// 只映射 5 个**非循环**的。Alarm1-10 / Call1-10 是 looping 音，
+  /// 当提醒会在横幅停留的十几秒里一直响，等于半个闹钟 —— 故意不给。
+  static const Map<String, fln.WindowsNotificationSound> _presetMap =
+      <String, fln.WindowsNotificationSound>{
+    '${SoundLib.presetPrefix}default': fln.WindowsNotificationSound.defaultSound,
+    '${SoundLib.presetPrefix}reminder': fln.WindowsNotificationSound.reminder,
+    '${SoundLib.presetPrefix}im': fln.WindowsNotificationSound.im,
+    '${SoundLib.presetPrefix}mail': fln.WindowsNotificationSound.mail,
+    '${SoundLib.presetPrefix}sms': fln.WindowsNotificationSound.sms,
+  };
+
+  /// 这一款铃声要不要 App 自己播（= Toast 那边要静音）
+  bool _appPlaysIt(String soundId) {
+    if (soundId.isEmpty) return false;
+    if (_presetMap.containsKey(soundId)) return false;
+    final SoundItem? s = SoundLib.byId(soundId);
+    return s != null && !s.systemPlay && (s.asset != null || s.file != null);
+  }
+
+  /// 按 id 响一声。空串 = 跟随全局默认；preset:* 已由系统播，这里跳过。
+  ///
+  /// 文件找不到（引用的本机文件被删）时静默失败并记一条错误，
+  /// 不弹对话框 —— 半夜蹦个报错框比不响更烦。
+  Future<void> _ringFor(String soundId) async {
+    // 只有 Windows 才由 App 自己播。Android 的声音归通知渠道管（见文件头
+    // 渠道版本注释），这里再播一次就是双声。
+    if (!Platform.isWindows) return;
+    if (!AppState.I.defaultRemindOn) return;
+    final String sid = soundId.isEmpty ? AppState.I.defaultSoundId : soundId;
+    if (sid.isEmpty || _presetMap.containsKey(sid)) return;
+    final bool ok = await SoundPlayer.playId(sid);
+    if (!ok) {
+      lastScheduleError = '铃声「${SoundLib.nameOf(sid)}」播不出来，'
+          '可能是引用的本机文件被删了，已按系统默认处理';
+    }
+  }
 
   /// Windows 到点弹一条，由 [WindowsReminder] 的定时器回调进来。
-  Future<void> _showWinToast(String todoId, String title, String body) async {
+  ///
+  /// [soundId] 是排程那一刻记下的铃声（空串 = 跟随全局默认）。
+  Future<void> _showWinToast(
+    String todoId,
+    String title,
+    String body,
+    String soundId,
+  ) async {
     if (!_ready) return;
+    final String sid = soundId.isEmpty ? AppState.I.defaultSoundId : soundId;
+    final bool soundOn = AppState.I.defaultRemindOn;
     try {
       await _plugin.show(
         // 补弹的汇总通知没有 todoId，用固定 id 避免每次叠一条
         todoId.isEmpty ? 999999 : _idOf(todoId),
         title,
         body,
-        fln.NotificationDetails(windows: _winDetails(title: title, body: body)),
+        fln.NotificationDetails(
+          windows: _winDetails(
+            title: title,
+            body: body,
+            soundId: sid,
+            soundOn: soundOn,
+          ),
+        ),
         payload: todoId,
       );
+      // 自定义铃声自己播；preset / 空串在 _ringFor 里直接返回
+      await _ringFor(sid);
       // 打日志便于排查「到点没反应」：能看到调度器确实触发了，
       // 剩下的问题就只在系统通知开关上
       // ignore: avoid_print
-      print('[win-toast] $title | 剩 ${_win?.count ?? 0} 条待弹');
+      print('[win-toast] $title | 铃声 ${SoundLib.nameOf(sid)} | 剩 ${_win?.count ?? 0} 条待弹');
     } catch (e) {
       lastScheduleError = 'Windows 弹窗失败：$e（多半是系统的通知权限被关了）';
     }
@@ -569,6 +672,7 @@ class Notifier {
           title: t.title,
           body: body,
           when: when,
+          soundId: t.soundId,
         );
       }
       note(
@@ -580,7 +684,13 @@ class Notifier {
 
     // Windows：不进系统排程，交给内部调度器（原因见 reminder_windows.dart）
     if (Platform.isWindows) {
-      _win?.put(todoId: t.id, title: t.title, body: body, when: when);
+      _win?.put(
+        todoId: t.id,
+        title: t.title,
+        body: body,
+        when: when,
+        soundId: t.soundId,
+      );
       note('Windows：已排进托盘调度器（当前 ${_win?.count ?? 0} 条）');
       return;
     }
@@ -666,9 +776,13 @@ class Notifier {
           soundOn: soundOn,
           title: '朝暮 · 测试提醒',
           body: '看到这条并且有声音，说明通知是通的。',
+          soundId: AppState.I.defaultSoundId,
         ),
         payload: '',
       );
+      // Windows：Toast 被设成静音了（自定义铃声那一支），声音从这里出。
+      // Android 上一进来就被平台判断挡住了。
+      await _ringFor(AppState.I.defaultSoundId);
       return true;
     } catch (e) {
       lastScheduleError = '测试提醒发送失败：$e';

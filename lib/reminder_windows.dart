@@ -6,10 +6,19 @@ const Duration _tick = Duration(seconds: 15);
 
 /// 一条排着的提醒
 class _Slot {
-  _Slot({required this.title, required this.body, required this.when});
+  _Slot({
+    required this.title,
+    required this.body,
+    required this.when,
+    this.soundId = '',
+  });
   final String title;
   final String body;
   final DateTime when;
+
+  /// 这条要响的铃声 id（见 SoundLib）。空串 = 跟随全局默认。
+  /// 存在这里而不是到点再去查，是为了「排程那一刻用户选的什么就响什么」。
+  final String soundId;
 }
 
 /// Windows 版提醒调度器：App 内自己比对时间，到点弹即时 Toast。
@@ -26,7 +35,14 @@ class WindowsReminder {
 
   /// 真正弹通知的动作，由 Notifier 注入 —— 复用同一个插件实例，
   /// 免得两个 FlutterLocalNotificationsPlugin 互相覆盖 AUMID 注册。
-  final Future<void> Function(String todoId, String title, String body) _fire;
+  ///
+  /// 第四个参数是这条要响的铃声 id（空串 = 跟随全局默认）。
+  final Future<void> Function(
+    String todoId,
+    String title,
+    String body,
+    String soundId,
+  ) _fire;
 
   final Map<String, _Slot> _slots = <String, _Slot>{};
 
@@ -60,8 +76,14 @@ class WindowsReminder {
     required String title,
     required String body,
     required DateTime when,
+    String soundId = '',
   }) {
-    _slots[todoId] = _Slot(title: title, body: body, when: when);
+    _slots[todoId] = _Slot(
+      title: title,
+      body: body,
+      when: when,
+      soundId: soundId,
+    );
   }
 
   void remove(String todoId) => _slots.remove(todoId);
@@ -78,8 +100,14 @@ class WindowsReminder {
     required String title,
     required String body,
     required DateTime when,
+    String soundId = '',
   }) {
-    _missed[todoId] = _Slot(title: title, body: body, when: when);
+    _missed[todoId] = _Slot(
+      title: title,
+      body: body,
+      when: when,
+      soundId: soundId,
+    );
   }
 
   /// 把 [putMissed] 收下的错过的提醒汇总成一条弹出去。
@@ -93,7 +121,7 @@ class WindowsReminder {
     final String head = n == 1 ? '错过 1 条提醒' : '错过 $n 条提醒';
     final String body =
         titles.join(' · ') + (n > titles.length ? ' 等' : '');
-    await _fire('', head, body);
+    await _fire('', head, body, '');
     return n;
   }
 
@@ -106,7 +134,7 @@ class WindowsReminder {
     for (final String id in due) {
       final _Slot? s = _slots.remove(id);
       if (s == null) continue;
-      await _fire(id, s.title, s.body);
+      await _fire(id, s.title, s.body, s.soundId);
     }
   }
 }

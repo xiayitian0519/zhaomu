@@ -13,11 +13,13 @@ import '../models.dart';
 import '../notifier.dart';
 import '../permissions.dart';
 import '../reminder_windows.dart';
+import '../sound_lib.dart';
 import '../store.dart';
 import '../update_log_page.dart';
 import '../widgets.dart';
 import '../windows_shell.dart';
 import 'review_history_page.dart';
+import 'sound_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -624,18 +626,6 @@ class SettingsPage extends StatelessWidget {
   }
 
   /// 跳到系统的「待办提醒」渠道设置页
-  Future<void> _openChannelSettings(BuildContext context) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    final bool ok = await Notifier.I.openChannelSettings();
-    if (ok) return;
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('跳不过去。手动路径：设置 → 应用管理 → 朝暮 → 通知 → 待办提醒'),
-        duration: Duration(seconds: 8),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppState st = AppState.I;
@@ -752,11 +742,31 @@ class SettingsPage extends StatelessWidget {
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => _pickAhead(context),
                 ),
+                // 「选铃声」（2026-10-26 起手机 + 电脑都显示）。
+                // 原来只对 Windows 开放，用户要求手机端也能选，已解除限制。
+                ListTile(
+                    title: const Text('铃声', style: TextStyle(fontSize: 14)),
+                    subtitle: Text(
+                      '全局默认：${SoundLib.nameOf(st.defaultSoundId)}'
+                      '（单条待办可在「时钟」面板里单独改）',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () async {
+                      // 不用 setState：整页在 AnimatedBuilder 里监听 AppState，
+                      // 选完铃声 setDefaultSoundId 会自己通知重建。
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (BuildContext _) => const SoundPage(),
+                        ),
+                      );
+                    },
+                  ),
                 SwitchListTile(
                   title: const Text('默认打开铃声', style: TextStyle(fontSize: 14)),
                   subtitle: Text(
                     Platform.isWindows
-                        ? '关掉后提醒只弹窗，不播系统提示音'
+                        ? '关掉后提醒只弹窗，不播铃声'
                         : '关掉后提醒只弹横幅 + 震动，不出声',
                     style: const TextStyle(fontSize: 12),
                   ),
@@ -792,30 +802,12 @@ class SettingsPage extends StatelessWidget {
               // Windows 专属：托盘常驻 + 开机自启的状态和开关
               if (Platform.isWindows) _DesktopSection(st: st),
 
-              // 铃声走的是 Android 通知渠道的声音设置，Windows 只有系统提示音
-              if (!Platform.isWindows) ...[
-                _sectionTitle('铃声'),
-                _card(<Widget>[
-                  ListTile(
-                    // 新手引导第 3 步的锚点（会先自动滚到这一行）
-                    key: GuideKeys.ringTile,
-                    title: const Text('通知铃声', style: TextStyle(fontSize: 14)),
-                    subtitle: const Text(
-                      '在系统铃声页挑本地音乐 / 在线铃声，所有提醒统一用它',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    trailing: const Icon(Icons.open_in_new, size: 18),
-                    onTap: () => _openChannelSettings(context),
-                  ),
-                ]),
-              ],
-
               _sectionTitle('关于朝暮'),
               _card(<Widget>[
                 ListTile(
                   title: const Text('重看新手引导', style: TextStyle(fontSize: 14)),
                   subtitle: const Text(
-                    '再走一遍主页、铃声、日历的引导',
+                    '再走一遍主页、日历的引导',
                     style: TextStyle(fontSize: 12),
                   ),
                   trailing: const Icon(Icons.chevron_right, size: 18),

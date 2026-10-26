@@ -1,16 +1,22 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../guide.dart';
 import '../models.dart';
 import '../notifier.dart';
+import '../sound_lib.dart';
 import '../widgets.dart';
+import 'sound_page.dart';
 
 class DetailPage extends StatefulWidget {
-  const DetailPage({super.key, required this.todo});
+  const DetailPage({super.key, required this.todo, this.autoClock = false});
 
   final Todo todo;
+
+  /// 调试用：进页面后自动把「时钟」面板弹出来（`chaomu.exe --clock`）。
+  /// 正常运行永远是 false。
+  final bool autoClock;
 
   @override
   State<DetailPage> createState() => _DetailPageState();
@@ -39,6 +45,9 @@ class _DetailPageState extends State<DetailPage> {
   /// 「自定义」执行日期：每月哪几号（升序）。只有 [_repeat] == 自定义 时有效
   List<int> _repeatDays = <int>[];
 
+  /// 这条专用的铃声 id（见 SoundLibrary）。空串 = 跟随设置里的默认铃声
+  String _soundId = '';
+
   @override
   void initState() {
     super.initState();
@@ -54,10 +63,20 @@ class _DetailPageState extends State<DetailPage> {
     _ahead = t.aheadMinutes;
     _remindOff = t.remindOff;
     _repeatDays = List<int>.of(t.repeatDays);
+    _soundId = t.soundId;
+    // 引导要知道用户真的进了详情页（第 2 步「点进去才算」）
+    GuideController.I.enter('detail');
+
+    if (widget.autoClock) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickClockPanel();
+      });
+    }
   }
 
   @override
   void dispose() {
+    GuideController.I.leave('detail');
     _title.dispose();
     _note.dispose();
     super.dispose();
@@ -81,6 +100,7 @@ class _DetailPageState extends State<DetailPage> {
     t.aheadMinutes = _ahead;
     t.remindOff = _remindOff;
     t.repeatDays = List<int>.of(_repeatDays);
+    t.soundId = _soundId;
 
     await st.update(t);
     await Notifier.I.scheduleFor(
@@ -116,27 +136,6 @@ class _DetailPageState extends State<DetailPage> {
 
   // ---------------- 提醒时刻推算 ----------------
 
-  /// 这条实际会在几点几分响。
-  ///
-  /// 基准 = 自选提醒时刻，没有就用带时刻的截止；再往前减提前量。
-  /// 和 Notifier.scheduleFor 里的算法保持一致。
-  DateTime? _fireAt(AppState st) {
-    if (_remindOff) return null;
-    DateTime? base = _remind;
-    if (base == null && _due != null && _dueHasTime) base = _due;
-    if (base == null) return null;
-    final int ahead = _ahead < 0 ? st.defaultAheadMinutes : _ahead;
-    return base.subtract(Duration(minutes: ahead));
-  }
-
-  /// 提醒那一行的副标题文案
-  String _remindSummary(AppState st) {
-    if (_remindOff) return '不提醒';
-    final DateTime? f = _fireAt(st);
-    if (f == null) return '还没定下提醒时刻';
-    return '会在 ${listDueLabel(f, true)} 提醒你';
-  }
-
   // ---------------- 底层选择器（面板里「其他…」点进来用） ----------------
 
   Future<void> _pickDueDate() async {
@@ -146,12 +145,16 @@ class _DetailPageState extends State<DetailPage> {
       initialDate: base,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      helpText: '选择截止日期',
+      helpText: '选择截止时间',
     );
-    if (d == null) return;
+    if (d == null || !mounted) return;
     setState(() {
       _due = DateTime(d.year, d.month, d.day, _due?.hour ?? 0, _due?.minute ?? 0);
     });
+    // 「时刻」那一组已经并进「截止时间」这个入口（2026-10-23 晚），
+    // 选完日期接着问时间。不想要具体时刻就点取消，那就只到日。
+    if (!mounted) return;
+    await _pickDueTime();
   }
 
   Future<void> _pickDueTime() async {
@@ -165,29 +168,6 @@ class _DetailPageState extends State<DetailPage> {
       final DateTime base = _due ?? DateTime.now();
       _due = DateTime(base.year, base.month, base.day, t.hour, t.minute);
       _dueHasTime = true;
-    });
-  }
-
-  /// 自选一个提醒时刻（面板里「挑个提醒时刻」点进来用）
-  Future<void> _pickRemindAt() async {
-    final DateTime base = _remind ?? (_due ?? DateTime.now());
-    final DateTime? d = await showDatePicker(
-      context: context,
-      initialDate: base,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      helpText: '选择提醒日期',
-    );
-    if (d == null || !mounted) return;
-    final TimeOfDay? t = await pickTime(
-      context,
-      initial: TimeOfDay.fromDateTime(base),
-      helpText: '选择提醒时刻',
-    );
-    if (t == null || !mounted) return;
-    setState(() {
-      _remind = DateTime(d.year, d.month, d.day, t.hour, t.minute);
-      _remindOff = false;
     });
   }
 
@@ -258,12 +238,24 @@ class _DetailPageState extends State<DetailPage> {
     });
   }
 
-  // ---------------- 截止面板 ----------------
+  // ---------------- 时钟面板（日期 + 提醒 + 频率三合一） ----------------
 
-  Future<void> _pickDuePanel() async {
+  /// 2026-10-23 晚按用户原型合并。
+  ///
+  /// 原来「截止时间」「提醒」是两个半屏面板，外加一个单独的「重复」下拉框，
+  /// 设完一件事要开关三次。现在并成一个整屏：日期 / 提醒 / 频率。
+  ///
+  /// 「时刻」不再是单独一组 —— 用户原型里把它收进了「截止时间」，
+  /// 点那一项会连着弹日期和时间。
+  Future<void> _pickClockPanel() async {
+    final AppState st = AppState.I;
     final DateTime now = DateTime.now();
+    // 快捷提前量。用户原型里只留了 5 分钟和 10 分钟，其余走「自定义」
+    const List<int> quick = <int>[5, 10];
+
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (BuildContext c) => StatefulBuilder(
         builder: (BuildContext c, void Function(void Function()) sheetSet) {
           void setDay(DateTime d) {
@@ -278,85 +270,145 @@ class _DetailPageState extends State<DetailPage> {
             });
           }
 
-          void setTime(int h, int m) {
-            sheetSet(() {
-              final DateTime b = _due ?? now;
-              _due = DateTime(b.year, b.month, b.day, h, m);
-              _dueHasTime = true;
-            });
-          }
-
-          final String big = _due == null
-              ? '还没设截止日期'
-              : (_dueHasTime
-                  ? '${relativeDayLabel(_due!)} ${timeLabel(_due!)}'
-                  : relativeDayLabel(_due!));
-
           return SafeArea(
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _sheetTitle('截止时间'),
+                  _sheetTitle('时钟'),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                     child: Text(
-                      big,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                      _clockSummary(st),
+                      style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
                     ),
                   ),
-                  _pillSection('日期', <Widget>[
+                  _pillSection('截止日期', <Widget>[
                     _pill('今天',
-                        on: _due != null && sameDay(_due!, now), onTap: () => setDay(now)),
+                        on: _due != null && sameDay(_due!, now),
+                        onTap: () => setDay(now)),
                     _pill('明天',
-                        on: _due != null && sameDay(_due!, now.add(const Duration(days: 1))),
+                        on: _due != null &&
+                            sameDay(_due!, now.add(const Duration(days: 1))),
                         onTap: () => setDay(now.add(const Duration(days: 1)))),
                     _pill('后天',
-                        on: _due != null && sameDay(_due!, now.add(const Duration(days: 2))),
+                        on: _due != null &&
+                            sameDay(_due!, now.add(const Duration(days: 2))),
                         onTap: () => setDay(now.add(const Duration(days: 2)))),
-                    _pill('下周一', onTap: () {
-                      int add = (8 - now.weekday) % 7;
-                      if (add == 0) add = 7;
-                      setDay(now.add(Duration(days: add)));
-                    }),
-                    _pill('月底', onTap: () => setDay(DateTime(now.year, now.month + 1, 0))),
-                    _pill('其他日期', onTap: () {
+                    _pill('截止时间', onTap: () {
                       Navigator.of(c).pop();
                       _pickDueDate();
                     }),
-                    _pill('清除', onTap: () {
-                      sheetSet(() {
-                        _due = null;
-                        _dueHasTime = false;
-                      });
-                    }),
                   ]),
-                  _pillSection('时刻', <Widget>[
-                    _pill('不带时刻',
-                        on: _due != null && !_dueHasTime,
-                        onTap: () => sheetSet(() => _dueHasTime = false)),
-                    for (final int hm in <int>[9 * 60, 12 * 60, 18 * 60, 21 * 60])
+                  _pillSection('提醒', <Widget>[
+                    _pill('准时',
+                        on: !_remindOff && _ahead == 0,
+                        onTap: () => sheetSet(() {
+                              _remindOff = false;
+                              _ahead = 0;
+                            })),
+                    for (final int m in quick)
                       _pill(
-                        tdlLabel(hm),
-                        on: _dueHasTime &&
-                            _due != null &&
-                            (_due!.hour * 60 + _due!.minute == hm),
-                        onTap: () => setTime(hm ~/ 60, hm % 60),
+                        aheadLabel(m),
+                        on: !_remindOff && _ahead == m,
+                        onTap: () => sheetSet(() {
+                              _remindOff = false;
+                              _ahead = m;
+                            }),
                       ),
-                    _pill('其他时刻', onTap: () {
-                      Navigator.of(c).pop();
-                      _pickDueTime();
-                    }),
+                    _pill('跟随设置',
+                        on: !_remindOff && _ahead < 0,
+                        onTap: () => sheetSet(() {
+                              _remindOff = false;
+                              _ahead = -1;
+                            })),
+                    _pill('自定义',
+                        on: !_remindOff && _ahead > 0 && !quick.contains(_ahead),
+                        onTap: () {
+                          Navigator.of(c).pop();
+                          _pickAheadCustom();
+                        }),
+                    _pill('不提醒',
+                        on: _remindOff,
+                        onTap: () => sheetSet(() {
+                              _remindOff = true;
+                              _remind = null;
+                            })),
                   ]),
+                  _pillSection('频率', <Widget>[
+                    for (final String e in RepeatRule.all)
+                      _pill(
+                        e == RepeatRule.custom
+                            ? (_repeat == RepeatRule.custom
+                                ? customRepeatLabel(_repeatDays)
+                                : '自定义')
+                            : RepeatRule.labelOf(e),
+                        on: _repeat == e,
+                        onTap: () {
+                          if (e == RepeatRule.custom) {
+                            Navigator.of(c).pop();
+                            _pickRepeatDaysPanel();
+                          } else {
+                            sheetSet(() {
+                              _repeat = e;
+                              _repeatDays = const <int>[];
+                            });
+                          }
+                        },
+                      ),
+                  ]),
+                  // 铃声（2026-10-26 起手机 + 电脑都显示）。
+                  //
+                  // 原来只给 Windows，理由是「手机端有系统渠道声音，会和 App 内
+                  // 选择打架」。用户明确要求手机端也能选，所以解除限制；
+                  // 渠道那边一个字没动，仍由渠道默认音兜底。
+                  InkWell(
+                      onTap: () async {
+                        Navigator.of(c).pop();
+                        final String? picked =
+                            await Navigator.of(context).push<String>(
+                          MaterialPageRoute<String>(
+                            builder: (BuildContext _) => SoundPage(
+                              single: true,
+                              initial: _soundId,
+                            ),
+                          ),
+                        );
+                        if (!mounted || picked == null) return;
+                        setState(() => _soundId = picked);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
+                        child: Row(
+                          children: <Widget>[
+                            const Text(
+                              '铃声',
+                              style: TextStyle(fontSize: 14, color: Color(0xFF8A91A0)),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _soundId.isEmpty
+                                  ? '跟随默认（${SoundLib.nameOf(st.defaultSoundId)}）'
+                                  : SoundLib.nameOf(_soundId),
+                              style: const TextStyle(fontSize: 14, color: Color(0xFF1A1F2B)),
+                            ),
+                            const Icon(Icons.chevron_right,
+                                size: 18, color: Color(0xFF8A91A0)),
+                          ],
+                        ),
+                      ),
+                    ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                     child: Row(
                       children: <Widget>[
                         const Spacer(),
                         TextButton(
                           onPressed: () => Navigator.of(c).pop(),
-                          style: TextButton.styleFrom(foregroundColor: const Color(0xFF185FA5)),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF185FA5),
+                          ),
                           child: const Text('完成'),
                         ),
                       ],
@@ -372,175 +424,26 @@ class _DetailPageState extends State<DetailPage> {
     if (mounted) setState(() {});
   }
 
-  // ---------------- 提醒面板 ----------------
-
-  Future<void> _pickRemindPanel() async {
-    final AppState st = AppState.I;
-    const List<int> quick = <int>[60, 30, 10, 0];
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (BuildContext c) => StatefulBuilder(
-        builder: (BuildContext c, void Function(void Function()) sheetSet) {
-          final DateTime? f = _fireAt(st);
-          final String big = _remindOff
-              ? '这条不会提醒'
-              : (f == null ? '还没定下提醒时刻' : '会在 ${listDueLabel(f, true)} 提醒你');
-
-          return SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  _sheetTitle('提醒'),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                    child: Text(
-                      big,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  _pillSection('提前多久', <Widget>[
-                    _pill('跟随设置',
-                        on: !_remindOff && _ahead < 0,
-                        onTap: () => sheetSet(() {
-                              _remindOff = false;
-                              _ahead = -1;
-                            })),
-                    for (final int m in quick)
-                      _pill(
-                        aheadLabel(m),
-                        on: !_remindOff && _ahead == m,
-                        onTap: () => sheetSet(() {
-                              _remindOff = false;
-                              _ahead = m;
-                            }),
-                      ),
-                    _pill('自定义',
-                        on: !_remindOff && _ahead > 0 && !quick.contains(_ahead),
-                        onTap: () {
-                          Navigator.of(c).pop();
-                          _pickAheadCustom();
-                        }),
-                    _pill('不提醒',
-                        on: _remindOff,
-                        onTap: () => sheetSet(() {
-                              _remindOff = true;
-                              _remind = null;
-                            })),
-                  ]),
-                  _pillSection('提醒基准', <Widget>[
-                    _pill(
-                      '跟截止走',
-                      on: !_remindOff && _remind == null && _dueHasTime,
-                      onTap: (_due != null && _dueHasTime)
-                          ? () => sheetSet(() {
-                                _remind = null;
-                                _remindOff = false;
-                              })
-                          : null,
-                    ),
-                    _pill(
-                      _remind == null ? '挑个提醒时刻' : '改提醒时刻',
-                      onTap: () {
-                        Navigator.of(c).pop();
-                        _pickRemindAt();
-                      },
-                    ),
-                    if (_remind != null)
-                      _pill('清除自选时刻', onTap: () => sheetSet(() => _remind = null)),
-                  ]),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                    child: Text(
-                      _remind != null
-                          ? '自选提醒时刻 ${dateTimeLabel(_remind!)}，再往前提。'
-                          : ((_due != null && _dueHasTime)
-                              ? '按截止时刻 ${shortDayLabel(_due!)} ${timeLabel(_due!)} 往前提。'
-                              : '截止没带时刻：要么给截止加上时刻，要么自选一个提醒时刻。'),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF9A9A9A), height: 1.5),
-                    ),
-                  ),
-                  // 铃声入口（2026-10-21 用户要求）：本地音乐和系统自带的都在
-                  // 系统那个「待办提醒」渠道页里挑，跳过去由系统来选。
-                  //
-                  // 只对手机显示 —— Windows 的提醒走系统 Toast，响不响、响什么
-                  // 由系统的提示音设置管，没有「按 App 挑铃声」这回事。
-                  if (!Platform.isWindows)
-                    InkWell(
-                      onTap: () => _openRingtone(c),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 2, 20, 14),
-                        child: Row(
-                          children: const <Widget>[
-                            Icon(
-                              Icons.music_note_outlined,
-                              size: 18,
-                              color: Color(0xFF185FA5),
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              '铃声',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                '本地音乐 / 系统自带，所有提醒统一用',
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF9A9A9A),
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right,
-                              size: 18,
-                              color: Color(0xFF9A9A9A),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
-                    child: Text(
-                      '到点怎么弹（横幅 / 全屏）在「设置 → 提醒」里统一切换。',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF9A9A9A)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    if (mounted) setState(() {});
-  }
-
-  /// 跳系统的「待办提醒」通知渠道页去挑铃声。
-  ///
-  /// 铃声归通知渠道管（渠道号 chaomu_remind_v8），不是逐条待办的字段 ——
-  /// 系统只给到「按渠道换声音」这一层，逐条换需要为每条待办开一个渠道，
-  /// 渠道一多用户的通知设置页就炸了，所以做成全局统一。
-  ///
-  /// 跳不过去（部分 ROM 把这个 Intent 屏蔽了）就退回手动路径，
-  /// 和设置页那一行说的完全一样，免得用户在两处看到两种说法。
-  Future<void> _openRingtone(BuildContext c) async {
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(c);
-    final bool ok = await Notifier.I.openChannelSettings();
-    if (ok) return;
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('跳不过去。手动路径：设置 → 应用管理 → 朝暮 → 通知 → 待办提醒'),
-        duration: Duration(seconds: 8),
-      ),
-    );
+  /// 「时钟」那一行的大字摘要：`10月24日 09:00 · 提前 10 分钟 · 仅今天`
+  String _clockSummary(AppState st) {
+    final List<String> parts = <String>[];
+    if (_due == null) {
+      parts.add('还没设日期');
+    } else {
+      parts.add(_dueHasTime
+          ? '${shortDayLabel(_due!)} ${timeLabel(_due!)}'
+          : shortDayLabel(_due!));
+    }
+    if (_remindOff) {
+      parts.add('不提醒');
+    } else {
+      final int ahead = _ahead < 0 ? st.defaultAheadMinutes : _ahead;
+      parts.add(aheadLabel(ahead));
+    }
+    parts.add(_repeat == RepeatRule.custom
+        ? customRepeatLabel(_repeatDays)
+        : RepeatRule.labelOf(_repeat));
+    return parts.join(' · ');
   }
 
   // ---------------- 小组件 ----------------
@@ -649,10 +552,8 @@ class _DetailPageState extends State<DetailPage> {
   @override
   Widget build(BuildContext context) {
     final AppState st = AppState.I;
-    final String repeatValue = RepeatRule.all.contains(_repeat) ? _repeat : RepeatRule.none;
 
-    final String dueText = _due == null ? '点这里挑日期和时刻' : listDueLabel(_due!, _dueHasTime);
-    final String remindText = _remindSummary(st);
+    final String clockText = _clockSummary(st);
 
     return Scaffold(
       appBar: AppBar(
@@ -698,28 +599,24 @@ class _DetailPageState extends State<DetailPage> {
             ),
           ]),
           _card(<Widget>[
-            _accentRow(
-              '截止时间',
-              dueText,
-              _pickDuePanel,
-              onClear: _due == null
-                  ? null
-                  : () => setState(() {
-                        _due = null;
-                        _dueHasTime = false;
-                      }),
-            ),
-            const Divider(height: 1, indent: 16, endIndent: 16),
-            _accentRow(
-              '提醒',
-              remindText,
-              _pickRemindPanel,
-              onClear: (_remind == null && !_remindOff)
-                  ? null
-                  : () => setState(() {
-                        _remind = null;
-                        _remindOff = false;
-                      }),
+            // 2026-10-23 晚合并：「截止时间」「提醒」原本两行两个半屏面板，
+            // 加上单独的「重复」下拉，设完一件事要开关三次。
+            // 现在只剩这一行，点开一个整屏面板设完（见 _pickClockPanel）。
+            KeyedSubtree(
+              key: GuideKeys.clockRow,
+              child: _accentRow(
+                '时钟',
+                clockText,
+                _pickClockPanel,
+                onClear: (_due == null && _remind == null && !_remindOff)
+                    ? null
+                    : () => setState(() {
+                          _due = null;
+                          _dueHasTime = false;
+                          _remind = null;
+                          _remindOff = false;
+                        }),
+              ),
             ),
           ]),
           _card(<Widget>[
@@ -745,46 +642,6 @@ class _DetailPageState extends State<DetailPage> {
                     ],
                   ),
                 ],
-              ),
-            ),
-          ]),
-          _card(<Widget>[
-            ListTile(
-              title: const Text('重复', style: TextStyle(fontSize: 14)),
-              subtitle: _repeat == RepeatRule.none
-                  ? null
-                  : const Text(
-                      '说明：完成后自动生成下一条的逻辑还没定，这一版只记录规则。',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF9A9A9A)),
-                    ),
-              trailing: DropdownButton<String>(
-                value: repeatValue,
-                underline: const SizedBox.shrink(),
-                items: <DropdownMenuItem<String>>[
-                  for (final String e in RepeatRule.all)
-                    DropdownMenuItem<String>(
-                      value: e,
-                      child: Text(
-                        e == RepeatRule.custom
-                            ? (_repeat == RepeatRule.custom
-                                ? customRepeatLabel(_repeatDays)
-                                : '自定义…')
-                            : RepeatRule.labelOf(e),
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ),
-                ],
-                onChanged: (String? v) {
-                  if (v == null) return;
-                  if (v == RepeatRule.custom) {
-                    _pickRepeatDaysPanel();
-                  } else {
-                    setState(() {
-                      _repeat = v;
-                      _repeatDays = const <int>[];
-                    });
-                  }
-                },
               ),
             ),
           ]),

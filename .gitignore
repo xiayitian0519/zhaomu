@@ -9,3 +9,7 @@ android/.gradle/
 android/app/.cxx/
 **/local.properties
 *.apk
+
+# JVM 崩溃日志（编译 OOM 时产生，2026-10-25 出现过 4 个）
+hs_err_pid*.log
+replay_pid*.log

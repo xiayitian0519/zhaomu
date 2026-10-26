@@ -36,6 +36,15 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // ⚠️ 这两个必须关掉（2026-10-23）。
+            // 资源名一旦被压缩/缩短（res/raw/sound_cheerful.mp3 → res/aB.mp3），
+            // 通知里那句 android.resource://包名/raw/sound_cheerful 就查不到资源，
+            // 提醒会静默无声 —— 而且代码不报错，只在真机上没声音，特别难查。
+            // 铃声是运行时按**字符串名**取的，构建期看不出来引用关系，
+            // 所以不能交给收缩器处理。
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

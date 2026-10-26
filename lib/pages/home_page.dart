@@ -44,17 +44,33 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday());
   }
 
-  void _scrollToToday() {
+  /// 打开自动定位到「今天」卡片（2026-10-18 需求）。
+  ///
+  /// ⚠️ 只重试是没用的。ListView 懒加载：**不滚到那儿就不构建那儿**，
+  /// 不构建就永远拿不到 [_todayKey].currentContext —— 光靠重试等到天荒地老也等不到。
+  /// 2026-10-23 第一次修就是只加重试，用户反馈「还是没法定位」。
+  ///
+  /// 真正解决靠两件事配合：
+  /// 1. 下面 ListView 设了 [cacheExtent]，把「今天」卡片提前构建出来（拿到 context）
+  /// 2. 重试等它构建完成、布局稳定
+  void _scrollToToday({int attempt = 0}) {
     if (!mounted || _scrolledToday) return;
     final BuildContext? ctx = _todayKey.currentContext;
-    if (ctx == null) return;
-    _scrolledToday = true;
-    Scrollable.ensureVisible(
-      ctx,
-      alignment: 0,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOut,
-    );
+    if (ctx != null) {
+      _scrolledToday = true;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOut,
+      );
+      return;
+    }
+    // 最多试 30 次（约 3 秒）。今天没待办时卡片压根不存在，到次数就停，别死循环。
+    if (attempt >= 30) return;
+    Future<void>.delayed(const Duration(milliseconds: 100), () {
+      _scrollToToday(attempt: attempt + 1);
+    });
   }
 
   /// 首次进入主页时放一次界面引导（见 lib/guide.dart）。
@@ -83,6 +99,8 @@ class _HomePageState extends State<HomePage> {
     final AppState st = AppState.I;
     await st.add(s);
     if (!mounted) return;
+    // 引导第 1 步要「真的加了一条才算过」（2026-10-24）
+    GuideController.I.onTodoAdded();
     _focus.requestFocus();
     _maybePromptReview();
   }
@@ -593,6 +611,11 @@ class _HomePageState extends State<HomePage> {
               Expanded(
                 child: ListView(
                   controller: _scroll,
+                  // 关键（2026-10-23）：默认 cacheExtent 只有 250px，逾期组一长，
+                  // 「今天」卡片被推到缓存区外就不会被构建，_todayKey 拿不到 context，
+                  // 自动定位永远失败。放大到 8000 让它在屏幕外也提前建出来。
+                  // 80 条待办 ≈ 5000px，留足余量；待办少的时候没有任何代价。
+                  cacheExtent: 8000,
                   padding: const EdgeInsets.only(bottom: 12),
                   children: children,
                 ),

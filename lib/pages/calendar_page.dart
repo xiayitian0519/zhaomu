@@ -114,10 +114,13 @@ class _CalendarPageState extends State<CalendarPage> {
     final DateTime n = DateTime.now();
     _month = DateTime(n.year, n.month, 1);
     _selected = dayOf(n);
+    // 引导要知道用户真的进了日历页（第 4 步「点进去看才算」）
+    GuideController.I.enter('calendar');
   }
 
   @override
   void dispose() {
+    GuideController.I.leave('calendar');
     _input.dispose();
     super.dispose();
   }
@@ -133,6 +136,8 @@ class _CalendarPageState extends State<CalendarPage> {
   void _toggleCollapsed() {
     final AppState st = AppState.I;
     st.setCalendarListCollapsed(!st.calendarListCollapsed);
+    // 引导第 6 步：真的点了展开才算过
+    GuideController.I.onExpanded();
   }
 
   Future<void> _addToSelected() async {

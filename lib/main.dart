@@ -12,6 +12,9 @@ import 'pages/detail_page.dart';
 import 'pages/home_page.dart';
 import 'pages/onboard_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/sound_page.dart';
+import 'sound_lib.dart';
+import 'sound_player.dart';
 import 'windows_shell.dart';
 
 /// 全局导航 key：点通知要能在任意页面跳去待办详情
@@ -27,6 +30,11 @@ Future<void> main(List<String> args) async {
   }
 
   await AppState.I.load();
+
+  // 预扫一遍导入的铃声目录。SoundLib.byId 是同步的（界面每帧都要调），
+  // 不预加载的话冷启动后第一条提醒解析不出 lib:* 会回落成系统默认。
+  await SoundLib.refreshImported();
+
   await Notifier.I.init();
 
   // 引导页完成后进主页。用注入的方式避免 onboard_page <-> home_page 循环依赖。
@@ -34,6 +42,19 @@ Future<void> main(List<String> args) async {
 
   // 点通知 -> 跳进对应待办详情
   Notifier.I.onOpenTodo = _openTodoById;
+
+  // 重复待办完成后自动生成的下一条，要排提醒。
+  // AppState 不认识 Notifier（会循环依赖），所以在这里注入。
+  AppState.I.onRepeatSpawned = (Todo t) {
+    final AppState st = AppState.I;
+    Notifier.I.scheduleFor(
+      t,
+      soundOn: st.defaultRemindOn,
+      aheadMinutes:
+          t.aheadMinutes < 0 ? st.defaultAheadMinutes : t.aheadMinutes,
+      style: st.remindStyle,
+    );
+  };
   // 冷启动就带着待办 id（App 是被通知点开的），等第一帧之后再跳
   final String? pending = Notifier.I.pendingTodoId;
   if (pending != null) {
@@ -43,11 +64,6 @@ Future<void> main(List<String> args) async {
 
   // 新手指引要切页面，但 guide.dart 不直接依赖 pages（会循环引用），
   // 所以在这里把跳转动作注入进去。
-  GuideController.I.pushSettings = () {
-    rootNavKey.currentState?.push(
-      MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
-    );
-  };
   GuideController.I.pushCalendar = () {
     rootNavKey.currentState?.push(
       MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
@@ -85,6 +101,65 @@ Future<void> main(List<String> args) async {
       );
     });
   }
+  // 调试入口：`chaomu.exe --sound` 直接进铃声页（截图 / 排查用）
+  if (args.contains('--sound')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(builder: (_) => const SoundPage()),
+      );
+    });
+  }
+
+  // 自测入口：`chaomu.exe --ringtest` 依次播一遍各类铃声，打印能不能播。
+  // 用来确认 audioplayers 在 Windows 上真的能加载 asset / 系统 wav。
+  if (args.contains('--ringtest')) {
+    Future<void>.delayed(const Duration(seconds: 3), () async {
+      final List<SoundItem> all = <SoundItem>[
+        ...SoundLib.builtin,
+        ...SoundLib.presets,
+        ...SoundLib.systemMedia().take(2),
+      ];
+      for (final SoundItem s in all) {
+        final bool ok = await SoundPlayer.playItem(s, force: true);
+        debugPrint('[ringtest] ${s.id} | ${s.name} -> ${ok ? 'OK' : 'FAIL'}');
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+      }
+      debugPrint('[ringtest] 全部播完，共 ${all.length} 款');
+    });
+  }
+
+  // 调试入口：`chaomu.exe --clock` 打开第一条未完成待办的「时钟」面板，
+  // 用来截图 / 验证铃声入口（正常点击要连点两下才能进详情，截图脚本容易点错）
+  if (args.contains('--clock')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Todo? target;
+      for (final Todo t in AppState.I.todos) {
+        if (!t.done) {
+          target = t;
+          break;
+        }
+      }
+      final Todo? picked = target;
+      if (picked == null) return;
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => DetailPage(todo: picked, autoClock: true),
+        ),
+      );
+    });
+  }
+
+  // 调试入口：`chaomu.exe --sound-single` 单条待办的铃声页（截图 / 排查用）
+  if (args.contains('--sound-single')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => const SoundPage(single: true),
+        ),
+      );
+    });
+  }
+
   // 调试入口：`chaomu.exe --calendar` 启动后直接进日历页
   if (args.contains('--calendar')) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

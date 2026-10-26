@@ -83,6 +83,12 @@ class Todo {
   /// 这个开关的作用就是把那条兜底关掉。
   bool remindOff;
 
+  /// 这条待办单独用的铃声 id（见 SoundLibrary）。空字符串 = 跟随设置里的默认铃声。
+  ///
+  /// 2026-10-23 加：用户要「不设就默认，专门设了才独立」。
+  /// 老存档没有这个键 → 读成空串 → 全部跟随默认，不需要迁移。
+  String soundId;
+
   Todo({
     required this.id,
     required this.title,
@@ -98,6 +104,7 @@ class Todo {
     this.doneAt,
     this.aheadMinutes = -1,
     this.remindOff = false,
+    this.soundId = '',
     this.repeatDays = const <int>[],
   }) : created = created ?? DateTime.now();
 
@@ -116,6 +123,7 @@ class Todo {
         'doneAt': doneAt?.toIso8601String(),
         'aheadMinutes': aheadMinutes,
         'remindOff': remindOff,
+        'soundId': soundId,
         'repeatDays': repeatDays,
       };
 
@@ -134,6 +142,7 @@ class Todo {
         doneAt: _parseDt(m['doneAt']),
         aheadMinutes: (m['aheadMinutes'] is num) ? (m['aheadMinutes'] as num).toInt() : -1,
         remindOff: m['remindOff'] == true,
+        soundId: '${m['soundId'] ?? ''}',
         repeatDays: _daysFromJson(m['repeatDays']),
       );
 

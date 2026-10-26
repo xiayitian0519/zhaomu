@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  渠道默认提示音的保留名单。
+
+  2026-10-23 晚用户决定「铃声就用系统自带的」，其余 6 个提示音都删了，
+  只留 sound_cheerful 这一个 —— 它有两个作用：
+  1. 通知渠道必须带一个具体的 sound，否则 MIUI 会把渠道记成「无」→ 整条渠道静音
+  2. 用户没去系统页改之前，默认就响它
+
+  这个文件不能删：release 构建会把「代码里没被字符串引用」的资源当无用资源剔除，
+  而铃声是按字符串名交给通知的，静态分析看不出引用关系。
+
+  ⚠️ 换默认铃声时，这里和 Notifier._channelDefaultSound 要一起改，并且升渠道号。
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/sound_cheerful" />

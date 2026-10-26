@@ -1,101 +1,136 @@
-/// 朝暮的更新内容（内置数据）。
-///
-/// 弹窗（版本变了首启弹一次）和「设置 → 关于朝暮 → 更新日志」共用这一份。
-/// **每次发版在这里加一条新的 AppUpdate（放最上面）**，条目一行一条人话，最多 5 条。
-/// 2026-10-17 起收录，更早的版本不列（用户定的）。
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
 import 'notifier.dart';
+import 'update_log_page.dart';
+import 'update_model.dart';
+import 'updates_gen.dart';
 
-/// 一个版本的更新内容
-class AppUpdate {
-  const AppUpdate(this.version, this.date, this.items);
+/// 更新内容（内置数据）。
+///
+/// ⚠️ **不要在这里手写条目**。数据来自 `lib/updates_gen.dart`，由
+/// `tool/gen_updates.py` 从 `CHANGELOG.md` 的「### 更新摘要」段自动生成。
+///
+/// 以前这里是手写的，CHANGELOG 改了忘了改这里 → 找不到条目 → 静默跳过不弹。
+/// 2.19.0 和 2.21.0 各栽过一次（2026-10-26 改成自动生成）。
+const List<AppUpdate> kUpdates = kUpdatesGenerated;
 
-  final String version; // 不带构建号，如 '2.13.0'
-  final String date; // '2026-10-17'
-  final List<String> items; // 更新条目，一行一条
-}
-
-const List<AppUpdate> kUpdates = <AppUpdate>[
-  AppUpdate('2.18.0', '2026-10-18', <String>[
-    '日历展开态每格最多显示 3 条，点格子弹出当天完整列表，不再互相遮挡',
-    '主页逾期栏只显示未完成的，已完成的不再挂前头',
-    '逾期栏能折叠；打开主页直接定位到今天',
-  ]),
-  AppUpdate('2.17.1', '2026-10-18', <String>[
-    '导出菜单新增「完整备份（可导入）」，换设备搬数据只认这份',
-    '以前导出的两份是报告，导不回来 —— 现在会直接告诉你原因',
-    '导入空文件会红字警告，不再让人误把数据清空',
-  ]),
-  AppUpdate('2.17.0', '2026-10-18', <String>[
-    'Windows 桌面版能装了，窗口按手机比例打开，界面跟手机一模一样',
-    'Windows 提醒：关窗口收进托盘继续跑，到点弹系统通知',
-    '关机期间错过的提醒，下次开机会汇总成一条提醒你',
-  ]),
-  AppUpdate('2.16.0', '2026-10-17', <String>[
-    '日历默认态改传统排版：格子等大、待办每条一行、容量满显示省略号',
-    '展开态大格恢复格子间隙',
-  ]),
-  AppUpdate('2.15.3', '2026-10-17', <String>[
-    '日历恢复到之前的版本（今天的日历新排版尝试已撤回）',
-  ]),
-  AppUpdate('2.13.0', '2026-10-17', <String>[
-    '新增「关于朝暮」：更新日志集中看每次改了什么',
-    '版本更新后首次打开自动弹一次更新内容',
-  ]),
-  AppUpdate('2.12.1', '2026-10-17', <String>[
-    '长按打优先级的界面再精简：只剩四个词和色块',
-  ]),
-  AppUpdate('2.12.0', '2026-10-17', <String>[
-    '待办列表按优先级整行标色，更醒目',
-    '四象限颜色新增 9 色鲜艳色板',
-    '长按打优先级的界面更简洁',
-  ]),
-];
-
-/// 版本号变了 → 首次打开弹一次更新内容。点「知道了」记进存档，不再弹。
+/// 弹出「这一版改了什么」。规则（2026-10-26 用户拍板）：
+///
+/// 1. 版本号变了 → 首次启动弹一次；同一版不再弹
+/// 2. **必须点「知道了」或「查看全部」才记账** —— 点外面、按 Esc 关掉，下次启动还会弹
+/// 3. 找不到这一版的条目时**也要弹**，弹一个简版兜底，绝不静默跳过
 Future<void> maybeShowUpdateDialog(BuildContext context) async {
   final AppState st = AppState.I;
-  final String v = await Notifier.I.appVersion();
+  final String raw = await Notifier.I.appVersion();
+  if (raw.isEmpty) return;
+
+  // 只比「主.次.补丁」。构建号每次打包都变，拿它比会导致重装同版本又弹一遍。
+  final String v = _main(raw);
   if (v.isEmpty) return;
-  if (st.lastSeenVersion == v) return;
+  // 老存档存的是带构建号的（2.20.1+40），_main 之后一起兼容
+  if (_main(st.lastSeenVersion) == v) return;
 
-  final bool hasEntry = kUpdates.any((AppUpdate u) => v.startsWith(u.version));
-  if (!hasEntry) {
-    // 没有这个版本的介绍数据（比如从很老的版本直接跳上来）：只记版本号不弹
-    await st.setLastSeenVersion(v);
-    return;
+  AppUpdate? cur;
+  for (final AppUpdate u in kUpdates) {
+    if (u.version == v) {
+      cur = u;
+      break;
+    }
   }
-  if (!context.mounted) return;
 
-  final AppUpdate cur = kUpdates.first;
-  final String name = v.split('+').first;
-  await showDialog<void>(
+  if (!context.mounted) return;
+  final String? action = await showDialog<String>(
     context: context,
-    builder: (BuildContext c) => AlertDialog(
-      title: Text('朝暮 $name 更新内容', style: const TextStyle(fontSize: 16)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(cur.date, style: const TextStyle(fontSize: 11, color: Color(0xFF9A9A9A))),
-          const SizedBox(height: 8),
-          for (final String it in cur.items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text('· $it', style: const TextStyle(fontSize: 13, height: 1.5)),
+    // 点外面不算看过 —— 否则手一滑关掉就再也不弹
+    barrierDismissible: false,
+    builder: (BuildContext c) => _UpdateDialog(update: cur, version: v),
+  );
+
+  // 被系统强制收起（切后台 / 杀进程）时不记账，下次还弹
+  if (action == null) return;
+  await st.setLastSeenVersion(v);
+
+  if (action == 'all' && context.mounted) {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const UpdateLogPage()),
+    );
+  }
+}
+
+String _main(String v) => v.split('+').first.trim();
+
+class _UpdateDialog extends StatelessWidget {
+  const _UpdateDialog({required this.update, required this.version});
+
+  final AppUpdate? update;
+  final String version;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppUpdate? u = update;
+
+    return PopScope(
+      // 拦掉 Esc / 返回键：只有点按钮才算看过
+      canPop: false,
+      child: AlertDialog(
+        title: Text(
+          u == null ? '朝暮已更新到 $version' : '朝暮 $version 更新内容',
+          style: const TextStyle(fontSize: 16),
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 380, maxHeight: 380),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (u != null)
+                  Text(
+                    u.date,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF9A9A9A)),
+                  ),
+                const SizedBox(height: 8),
+                if (u == null) ...<Widget>[
+                  const Text(
+                    '这一版没写详细说明。',
+                    style: TextStyle(fontSize: 13, height: 1.5),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    '去「设置 → 关于朝暮 → 更新日志」能看全部改动记录。',
+                    style: TextStyle(fontSize: 13, height: 1.5),
+                  ),
+                ] else
+                  for (final String it in u.items)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '· $it',
+                        style: const TextStyle(fontSize: 13, height: 1.5),
+                      ),
+                    ),
+              ],
             ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('all'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF185FA5),
+            ),
+            child: const Text('查看全部'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('ok'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF185FA5),
+            ),
+            child: const Text('知道了'),
+          ),
         ],
       ),
-      actions: <Widget>[
-        FilledButton(
-          onPressed: () => Navigator.of(c).pop(),
-          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF185FA5)),
-          child: const Text('知道了'),
-        ),
-      ],
-    ),
-  );
-  await st.setLastSeenVersion(v);
+    );
+  }
 }
