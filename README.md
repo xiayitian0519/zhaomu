@@ -1,17 +1,140 @@
-# chaomu
+# 朝暮 · 待办与提醒
 
-A new Flutter project.
+**手机电脑双端待办，到点一定响，做完看得见执行力。**
 
-## Getting Started
+数据全存本机 —— 不注册、不联网、不上传。
 
-This project is a starting point for a Flutter application.
+---
 
-A few resources to get you started if this is your first Flutter project:
+## 下载
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+<table>
+<tr>
+<td align="center" width="50%">
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### [⬇ 下载安卓版 APK](https://github.com/xiayitian0519/zhaomu/releases/download/v2.22.0/chaomu-2.22.0-arm64.apk)
+
+<sub>23.9 MB · Android 7.0 及以上 · arm64 机型</sub>
+
+</td>
+<td align="center" width="50%">
+
+### [⬇ 下载电脑版（免安装）](https://github.com/xiayitian0519/zhaomu/releases/download/v2.22.0/chaomu-2.22.0-windows-x64.zip)
+
+<sub>13.8 MB · Windows 10 / 11 64 位 · 解压即用</sub>
+
+</td>
+</tr>
+</table>
+
+点上面的文字直接下载，**不需要注册 GitHub 账号**。历史版本见 [Releases](https://github.com/xiayitian0519/zhaomu/releases)。
+
+---
+
+## 安装
+
+### 安卓手机
+
+1. 下载 `chaomu-2.22.0-arm64.apk` 到手机
+2. 在文件管理器里点它，系统提示「未知来源应用」时允许安装
+3. 装完**必须做一步**：打开 App → 设置 → 权限中心，把这几项全打开
+   - 自启动
+   - 后台弹出界面
+   - 精确闹钟
+   - 省电策略无限制
+   - 锁屏显示
+   - 后台锁定
+
+不打开第 3 步，手机上会到点不响。这不是 App 的问题 —— 安卓厂商默认在你「不用」的时候把后台杀掉，这六项就是告诉系统「这个 App 别杀」。
+
+### Windows 电脑
+
+1. 下载 `chaomu-2.22.0-windows-x64.zip`
+2. 右键 → 解压到当前文件夹（不要直接在压缩包里双击，会缺 DLL）
+3. 进解压出来的 `朝暮-2.22.0` 文件夹，双击 `chaomu.exe`
+4. 首次打开如果 Windows 弹「已保护你的电脑」，点「更多信息」→「仍要运行」
+5. 点窗口关闭按钮不会退出 —— 它会缩到右下角托盘继续提醒。要真退出请右键托盘图标
+
+---
+
+## 解决什么问题
+
+不在于「不会做计划」，而在于**计划做完之后没人按时叫住你**：
+
+1. 手机上设的提醒，人一坐到电脑前就失效
+2. 电脑上列的清单，一出门就忘了看
+3. 提醒没响的时候，你根本不知道是权限问题还是软件问题，只能卸载重装
+
+朝暮针对这三点：
+
+1. **同一套代码覆盖两端** —— 手机端走系统精确闹钟加全屏闹钟，电脑端靠托盘常驻加开机自启，关机期间错过的提醒开机后补一条汇总
+2. **提醒不来能自己查** —— 权限中心逐项体检 8 项关键权限，排程诊断卡直接显示系统时区、时区偏移、待办条数、最近一次排程结果
+3. **电脑端是真桌面应用** —— 不是网页套壳，浏览器关掉也照样响
+
+---
+
+## 功能
+
+**分轻重**
+
+- 四象限给待办打优先级，长按拖进去就行
+- 9 色鲜艳色板，自定义每个象限的颜色
+
+**定时刻**
+
+- 日历月视图，点某天直接看当天列表
+- TDL 时间轴，刻度可任意设为 1~720 分钟
+- 提醒形态可选：横幅 / 全屏
+- 提前量可选：全局默认 0/5/10/15/30/60/120 分钟，单条可单独覆盖
+- 重复规则：每天 / 每周 / 每月 / 每年 / 自定义天号 —— **勾选完成会自动生成下一条**，日期往后推一格，「提前 10 分钟」在新一条上照样成立
+
+**看结果**
+
+- 复盘总结，按完成情况算执行力百分比，可保存可回看
+- 历史记录页，带柱状图
+
+**电脑端专属**
+
+- 7 款内置铃声 + Windows 系统声音 75 款，全部可试听
+- 全局默认一套，单条待办可单独覆盖（交房租用警报提示，提醒喝水用轻的）
+- 支持导入音频文件（复制进数据目录，换机跟着走）或引用本机文件（不复制，原文件删了自动回退）
+- 托盘常驻，关窗不退出
+- 开机静默自启
+
+---
+
+## 平台差异
+
+| 功能 | 安卓 | Windows |
+|---|:---:|:---:|
+| 待办 / 四象限 / 日历 / 时间轴 / 复盘 | 有 | 有 |
+| 到点提醒 | 系统精确闹钟 + 全屏闹钟 | App 内轮询 + 托盘常驻 |
+| 提醒铃声 | 由系统通知渠道决定，只能全局 | 7 内置 + 系统 75 款 + 导入，全局 + 单条 |
+| 全屏闹钟 | 有 | 无对应机制 |
+| 权限中心（8 项体检） | 有 | 不需要 |
+| 托盘常驻 / 开机自启 | 靠系统 | 有 |
+| 完整备份导出 / 导入 | 有 | 有 |
+
+---
+
+## 数据与隐私
+
+1. 全部数据以本地文件保存，**没有服务器、没有账号体系**
+2. 完整备份可导出、可重新导入 —— 导出即备份，换机不丢
+3. 不联网、不上传、不做数据采集
+
+---
+
+## 边界（明确不做的事）
+
+1. **不做多人协作** —— 没有共享清单
+2. **不做云同步** —— 多台设备之间只能靠完整备份导入导出
+3. **不做标签体系和无限层级项目树** —— 只在 Windows 与安卓上跑，没有 iOS 与 macOS 版
+
+---
+
+## 更新记录
+
+完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
+
+当前版本 **2.22.0+45**（2026-10-26）。
