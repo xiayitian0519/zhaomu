@@ -29,6 +29,13 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // 只打 arm64-v8a：真机唯一会加载的架构。
+        // 2.21.3 起不再把 x86_64（安卓模拟器专用）和 armeabi-v7a（2016 年前
+        // 老 32 位机）打进包，实测 APK 从 61.9 MB 降到约 23.6 MB。
+        // 用户已确认不用模拟器，代价可接受。
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {

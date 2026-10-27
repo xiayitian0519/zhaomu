@@ -9,6 +9,67 @@
 
 ---
 
+## 2.22.0+45 — 2026-10-26
+
+### 更新摘要
+
+- 待办细则里点「截止时间」只弹时间滚轮了，不再先问日期。想指定哪一天，去日历页点那一天新建
+- 手机版不再显示「铃声」：手机的声音归系统通知管，App 里选什么都不生效，摆着只会误导。电脑版铃声照旧
+
+### 改动
+
+1. `lib/pages/detail_page.dart`：删掉 `_pickDueDate()`（原来是先弹日期选择器、再弹时间）
+2. `lib/pages/detail_page.dart`：时钟面板「截止日期」那一组，第 4 个 pill 从「截止时间」改成显示当前时刻，没设时刻显示「加个时间」，点了直接 `_pickDueTime()`
+3. `lib/pages/detail_page.dart`：时钟面板底部「铃声」行恢复 `if (Platform.isWindows)`
+4. `lib/pages/settings_page.dart`：设置 → 提醒 →「铃声」行恢复 `if (Platform.isWindows)`
+5. `pubspec.yaml`：2.21.3+44 → 2.22.0+45
+
+### 为什么手机版不显示铃声
+
+手机的通知声音由通知渠道 `chaomu_remind_v10` 决定（渠道自带 `sound_cheerful`），
+`notifier.dart` 的安卓分支根本不传 `sound` 参数。所以 App 里选铃声对手机完全无效 ——
+2.21.2 把这个入口放开，只是多了个点了不动的地方。现在收回，手机端行为和 2.20.0 一致。
+
+### 怎么验证的
+
+1. `flutter analyze` 两个文件：只剩 1 条既有 info（settings_page 的 `dart:typed_data` 多余导入，2.21.2 就有）
+2. `flutter build windows --release` 成功
+3. 实机截图：面板显示「今天 / 明天 / 后天 / 加个时间」，底部「铃声　跟随默认（警报提示）」在电脑版正常显示
+4. 全文 grep：`showDatePicker`、`_pickDueDate` 已彻底移除
+
+### 这轮踩的坑（下轮别再踩）
+
+1. **集合 if 写反**：第一次写成 `if (!Platform.isWindows)`，结果是电脑版铃声消失、手机版反而显示。`if (cond) widget` 是「cond 为真才包含」。这种逻辑反静态检查查不出来，只能靠两个平台各截一次图。
+2. **`reg.exe` 被安全策略拉黑时整条工具链瘫**：`flutter build` / `flutter test` / `dart run` 全报 `fatal error C1083 无法打开 windows.h / crtdbg.h`，看着像 SDK 坏了，实际是 MSBuild 调 `reg.exe` 查路径被拦。`dangerouslyDisableSandbox` 绕不过，必须从安全中心把 `reg.exe` 移出黑名单。
+3. **Flutter 窗口不吃模拟点击**：`SetCursorPos + mouse_event`、`PostMessage(WM_LBUTTONDOWN)` 都没反应，验证「点了之后什么样」只能人手点。
+4. **截图要先乘 DPI**：`GetWindowRect` 报 430×900 是逻辑尺寸，`GetDpiForWindow`=192，物理 860×1800，不乘就右边被裁。用 `PrintWindow(hwnd, hdc, 2)` 抓，窗口被遮住也能抓到内容。
+
+---
+
+## 2.21.3+44 — 2026-10-26
+
+### 更新摘要
+
+- 安装包从 61.9 MB 降到约 23.6 MB，省掉六成：包里不再带模拟器专用的 x86_64（21.0 MB）和 2016 年前老 32 位机才用的 armeabi-v7a（17.2 MB），只留你自己手机在用的 arm64-v8a
+
+### 改动
+
+1. `android/app/build.gradle.kts` 的 `defaultConfig` 里，`versionName` 那行后面加 `ndk { abiFilters += listOf("arm64-v8a") }`
+2. `pubspec.yaml` 版本 2.21.2+43 → 2.21.3+44
+
+### 代价
+
+1. 安卓模拟器装不上这个包
+2. 2016 年前的老 32 位安卓机装不上
+3. 真机功能零变化，代码逻辑一个字没改
+
+### 没动的
+
+1. `android/app/src/main/res/raw/keep.xml` 原样保留 —— 删了铃声资源会被剔除
+2. `android/gradle.properties` 的 `android.enableResourceOptimizations=false` 原样保留 —— 删了音频会被改名，通知按名字取音会失败
+3. `windows/` 和 CMake 没碰 —— Windows 版没有多架构，压不动
+4. 没启用 split APKs，仍然出单个包，不是三个包
+
 ## 2.21.2+43 — 2026-10-26
 
 ### 更新摘要

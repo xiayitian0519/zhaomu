@@ -742,8 +742,9 @@ class SettingsPage extends StatelessWidget {
                   trailing: const Icon(Icons.chevron_right, size: 18),
                   onTap: () => _pickAhead(context),
                 ),
-                // 「选铃声」（2026-10-26 起手机 + 电脑都显示）。
-                // 原来只对 Windows 开放，用户要求手机端也能选，已解除限制。
+                // 「选铃声」只给电脑。手机端声音走系统通知渠道，
+                // App 里选不生效，2026-10-26 用户要求改回 2.20.0 的做法。
+                if (Platform.isWindows)
                 ListTile(
                     title: const Text('铃声', style: TextStyle(fontSize: 14)),
                     subtitle: Text(

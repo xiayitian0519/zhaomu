@@ -160,6 +160,29 @@ Future<void> main(List<String> args) async {
     });
   }
 
+  // 调试入口：`chaomu.exe --detail` 直接进第一条未完成待办的详情页，**不弹时钟面板**。
+  // 和 --clock 只差 autoClock 一个参数。加它是因为截图取证时需要一个干净的
+  // 详情页（--clock 会把下半屏的面板打开，挡住时钟行），模拟点击和模拟 Esc
+  // 都进不去 Flutter 窗口，只能从启动参数走。
+  if (args.contains('--detail')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Todo? target;
+      for (final Todo t in AppState.I.todos) {
+        if (!t.done) {
+          target = t;
+          break;
+        }
+      }
+      final Todo? picked = target;
+      if (picked == null) return;
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(
+          builder: (_) => DetailPage(todo: picked),
+        ),
+      );
+    });
+  }
+
   // 调试入口：`chaomu.exe --calendar` 启动后直接进日历页
   if (args.contains('--calendar')) {
     WidgetsBinding.instance.addPostFrameCallback((_) {

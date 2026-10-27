@@ -1,4 +1,6 @@
 
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
@@ -137,25 +139,6 @@ class _DetailPageState extends State<DetailPage> {
   // ---------------- 提醒时刻推算 ----------------
 
   // ---------------- 底层选择器（面板里「其他…」点进来用） ----------------
-
-  Future<void> _pickDueDate() async {
-    final DateTime base = _due ?? DateTime.now();
-    final DateTime? d = await showDatePicker(
-      context: context,
-      initialDate: base,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-      helpText: '选择截止时间',
-    );
-    if (d == null || !mounted) return;
-    setState(() {
-      _due = DateTime(d.year, d.month, d.day, _due?.hour ?? 0, _due?.minute ?? 0);
-    });
-    // 「时刻」那一组已经并进「截止时间」这个入口（2026-10-23 晚），
-    // 选完日期接着问时间。不想要具体时刻就点取消，那就只到日。
-    if (!mounted) return;
-    await _pickDueTime();
-  }
 
   Future<void> _pickDueTime() async {
     final TimeOfDay? t = await pickTime(
@@ -296,10 +279,19 @@ class _DetailPageState extends State<DetailPage> {
                         on: _due != null &&
                             sameDay(_due!, now.add(const Duration(days: 2))),
                         onTap: () => setDay(now.add(const Duration(days: 2)))),
-                    _pill('截止时间', onTap: () {
-                      Navigator.of(c).pop();
-                      _pickDueDate();
-                    }),
+                    // 2026-10-26：日期不在细则里选了。想指定某一天，去日历页
+                    // 点那一天新建（用户原话：「要选日期就用日历功能加就行，
+                    // 待办细则里面只管时间」）。所以这个 pill 只管时刻 ——
+                    // 点了直接弹时间轮盘，不再先弹日期选择器。
+                    _pill(
+                        _dueHasTime && _due != null
+                            ? timeLabel(_due!)
+                            : '加个时间',
+                        on: _dueHasTime,
+                        onTap: () {
+                          Navigator.of(c).pop();
+                          _pickDueTime();
+                        }),
                   ]),
                   _pillSection('提醒', <Widget>[
                     _pill('准时',
@@ -358,12 +350,12 @@ class _DetailPageState extends State<DetailPage> {
                         },
                       ),
                   ]),
-                  // 铃声（2026-10-26 起手机 + 电脑都显示）。
-                  //
-                  // 原来只给 Windows，理由是「手机端有系统渠道声音，会和 App 内
-                  // 选择打架」。用户明确要求手机端也能选，所以解除限制；
-                  // 渠道那边一个字没动，仍由渠道默认音兜底。
-                  InkWell(
+                  // 铃声：只给电脑。手机端的声音由系统通知渠道
+                  // （chaomu_remind_v10 自带 sound_cheerful）决定，
+                  // App 里选什么都不生效，摆在这儿只会误导。
+                  // 2026-10-26 用户要求改回来，和 2.20.0 手机版一致。
+                  if (Platform.isWindows)
+                    InkWell(
                       onTap: () async {
                         Navigator.of(c).pop();
                         final String? picked =
