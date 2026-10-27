@@ -350,13 +350,16 @@ class _DetailPageState extends State<DetailPage> {
                         },
                       ),
                   ]),
-                  // 铃声：只给电脑。手机端的声音由系统通知渠道
-                  // （chaomu_remind_v10 自带 sound_cheerful）决定，
-                  // App 里选什么都不生效，摆在这儿只会误导。
-                  // 2026-10-26 用户要求改回来，和 2.20.0 手机版一致。
-                  if (Platform.isWindows)
-                    InkWell(
-                      onTap: () async {
+                  // 铃声 / 系统通知。
+                  //
+                  // 两端走了不同的路（2026-10-27 用户拍板）：
+                  //   电脑：App 内七款铃声可选可试听，改完真能生效
+                  //   手机：声音归系统通知渠道 chaomu_remind_v10 管，
+                  //        App 里选什么都盖不过渠道 —— 所以这里只做一个跳转，
+                  //        点了直接到系统的「待办提醒」页（声音/振动/悬浮通知都在那）
+                  InkWell(
+                    onTap: () async {
+                      if (Platform.isWindows) {
                         Navigator.of(c).pop();
                         final String? picked =
                             await Navigator.of(context).push<String>(
@@ -369,28 +372,44 @@ class _DetailPageState extends State<DetailPage> {
                         );
                         if (!mounted || picked == null) return;
                         setState(() => _soundId = picked);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
-                        child: Row(
-                          children: <Widget>[
-                            const Text(
-                              '铃声',
-                              style: TextStyle(fontSize: 14, color: Color(0xFF8A91A0)),
-                            ),
-                            const Spacer(),
-                            Text(
-                              _soundId.isEmpty
-                                  ? '跟随默认（${SoundLib.nameOf(st.defaultSoundId)}）'
-                                  : SoundLib.nameOf(_soundId),
-                              style: const TextStyle(fontSize: 14, color: Color(0xFF1A1F2B)),
-                            ),
-                            const Icon(Icons.chevron_right,
-                                size: 18, color: Color(0xFF8A91A0)),
-                          ],
-                        ),
+                        return;
+                      }
+                      // 安卓：跳系统的渠道设置页
+                      Navigator.of(c).pop();
+                      final bool ok = await Notifier.I.openChannelSettings();
+                      if (!ok && mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('跳不过去，手动去：设置 → 通知 → 朝暮 → 待办提醒'),
+                          ),
+                        );
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
+                      child: Row(
+                        children: <Widget>[
+                          Text(
+                            Platform.isWindows ? '铃声' : '系统通知',
+                            style: const TextStyle(
+                                fontSize: 14, color: Color(0xFF8A91A0)),
+                          ),
+                          const Spacer(),
+                          Text(
+                            Platform.isWindows
+                                ? (_soundId.isEmpty
+                                    ? '跟随默认（${SoundLib.nameOf(st.defaultSoundId)}）'
+                                    : SoundLib.nameOf(_soundId))
+                                : '声音 / 振动 / 悬浮通知',
+                            style: const TextStyle(
+                                fontSize: 14, color: Color(0xFF1A1F2B)),
+                          ),
+                          const Icon(Icons.chevron_right,
+                              size: 18, color: Color(0xFF8A91A0)),
+                        ],
                       ),
                     ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                     child: Row(
