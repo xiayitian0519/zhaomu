@@ -8,14 +8,14 @@
 <tr>
 <td align="center" width="50%">
 
-### [⬇ 下载安卓版 APK](https://github.com/xiayitian0519/zhaomu/releases/download/v2.22.0/chaomu-2.22.0-arm64.apk)
+### [⬇ 下载安卓版 APK](https://github.com/xiayitian0519/zhaomu/releases/download/v2.22.1/chaomu-2.22.1-arm64.apk)
 
 <sub>23.9 MB · Android 7.0 及以上 · arm64 机型</sub>
 
 </td>
 <td align="center" width="50%">
 
-### [⬇ 下载电脑版（免安装）](https://github.com/xiayitian0519/zhaomu/releases/download/v2.22.0/chaomu-2.22.0-windows-x64.zip)
+### [⬇ 下载电脑版（免安装）](https://github.com/xiayitian0519/zhaomu/releases/download/v2.22.1/chaomu-2.22.1-windows-x64.zip)
 
 <sub>13.8 MB · Windows 10 / 11 64 位 · 解压即用</sub>
 
@@ -31,7 +31,7 @@
 
 ### 安卓手机
 
-1. 下载 `chaomu-2.22.0-arm64.apk` 到手机
+1. 下载 `chaomu-2.22.1-arm64.apk` 到手机
 2. 在文件管理器里点它，系统提示「未知来源应用」时允许安装
 3. 装完**必须做一步**：打开 App → 设置 → 权限中心，把这几项全打开
    - 自启动
@@ -45,9 +45,9 @@
 
 ### Windows 电脑
 
-1. 下载 `chaomu-2.22.0-windows-x64.zip`
+1. 下载 `chaomu-2.22.1-windows-x64.zip`
 2. 右键 → 解压到当前文件夹（不要直接在压缩包里双击，会缺 DLL）
-3. 进解压出来的 `朝暮-2.22.0` 文件夹，双击 `chaomu.exe`
+3. 进解压出来的 `朝暮-2.22.1` 文件夹，双击 `chaomu.exe`
 4. 首次打开如果 Windows 弹「已保护你的电脑」，点「更多信息」→「仍要运行」
 5. 点窗口关闭按钮不会退出 —— 它会缩到右下角托盘继续提醒。要真退出请右键托盘图标
 
@@ -133,4 +133,4 @@
 
 完整版本历史见 [CHANGELOG.md](CHANGELOG.md)。
 
-当前版本 **2.22.0+45**（2026-10-26）。
+当前版本 **2.22.1+46**（2026-10-27）。
