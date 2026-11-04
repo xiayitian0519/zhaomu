@@ -245,6 +245,15 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       actions: <Widget>[
+        // 排序：2026-11-04 用户要求钉在右上角，不跟列表滚动、也不受逾期组折叠影响。
+        // 以前挂在分组标题行右边（widgets.dart 的 GroupHeader.showSort），
+        // 折叠逾期组时那行只剩一条「逾期 · N 条未完成」，排序按钮跟着没了。
+        TextButton(
+          onPressed: () =>
+              st.setSortMode(st.sortMode == 'time' ? 'priority' : 'time'),
+          style: _actionStyle(),
+          child: Text(st.sortMode == 'time' ? '↕ 时间' : '↕ 优先级'),
+        ),
         TextButton(
           key: GuideKeys.calBtn,
           onPressed: () => Navigator.of(context).push(
@@ -252,11 +261,6 @@ class _HomePageState extends State<HomePage> {
           ),
           style: _actionStyle(),
           child: const Text('日历'),
-        ),
-        TextButton(
-          onPressed: () => st.setNoStrike(!st.noStrike),
-          style: _actionStyle(),
-          child: Text(st.noStrike ? '加划线' : '无划线'),
         ),
         PopupMenuButton<String>(
           tooltip: '更多',
@@ -281,13 +285,22 @@ class _HomePageState extends State<HomePage> {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
               );
+            } else if (v == 'strike') {
+              // 「无划线」原来占着 AppBar 一个位置，2026-11-04 给排序让位，
+              // 挪进这个菜单（低频开关）。
+              st.setNoStrike(!st.noStrike);
             }
           },
-          itemBuilder: (BuildContext c) => const <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(value: 'tdl', child: Text('TDL 时间轴')),
-            PopupMenuItem<String>(value: 'done', child: Text('已完成')),
-            PopupMenuItem<String>(value: 'review', child: Text('今日复盘')),
-            PopupMenuItem<String>(value: 'history', child: Text('历史记录')),
+          itemBuilder: (BuildContext c) => <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: 'strike',
+              child: Text(st.noStrike ? '显示完成划线' : '隐藏完成划线'),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem<String>(value: 'tdl', child: Text('TDL 时间轴')),
+            const PopupMenuItem<String>(value: 'done', child: Text('已完成')),
+            const PopupMenuItem<String>(value: 'review', child: Text('今日复盘')),
+            const PopupMenuItem<String>(value: 'history', child: Text('历史记录')),
             PopupMenuItem<String>(value: 'settings', child: Text('设置')),
           ],
         ),
@@ -435,29 +448,26 @@ class _HomePageState extends State<HomePage> {
                     // 只要设了截止就一定出这行日期（带不带时刻都出）——
                     // 用户 2026-10-16：「不带具体时刻也要显示日期」。
                     // 逾期那几条的日期行用红字。
-                    if (t.due != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Text(
-                          listDueLabel(t.due!, t.dueHasTime),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: t.done
-                                ? const Color(0xFFB8B8B8)
-                                : (dayOf(t.due!).isBefore(dayOf(DateTime.now()))
-                                    ? const Color(0xFFA32D2D)
-                                    : const Color(0xFF9A9A9A)),
-                          ),
-                        ),
-                      )
-                    else if (t.remind != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 3),
-                        child: Text(
-                          '提醒 ${dateTimeLabel(t.remind!)}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFF9A9A9A)),
+                    // 2026-11-04：due 为 null（用户主动选「不限」）时出「不限日期」，
+                    // 灰字，永远不标红、不进逾期组。
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        t.due != null
+                            ? listDueLabel(t.due!, t.dueHasTime)
+                            : (t.remind != null
+                                ? '不限日期 · 提醒 ${dateTimeLabel(t.remind!)}'
+                                : '不限日期'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: (t.done || t.due == null)
+                              ? const Color(0xFFB8B8B8)
+                              : (dayOf(t.due!).isBefore(dayOf(DateTime.now()))
+                                  ? const Color(0xFFA32D2D)
+                                  : const Color(0xFF9A9A9A)),
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),
@@ -542,7 +552,6 @@ class _HomePageState extends State<HomePage> {
             ),
           );
         } else {
-          bool first = true;
           // 引导要指"第一条待办的铅笔"，只在第一个画出来的行上挂锚点
           bool anchorGiven = false;
           for (final TodoGroup g in groups) {
@@ -550,14 +559,14 @@ class _HomePageState extends State<HomePage> {
             // 逾期组折叠：只画一行「逾期 · N 条未完成」，点一下展开
             if (isOverdue && st.overdueCollapsed) {
               children.add(_overdueBar(g));
-              first = false;
               continue;
             }
             children.add(
               GroupHeader(
                 title: g.title,
                 colorValue: g.colorValue,
-                showSort: first,
+                // 排序按钮已挪到 AppBar（2026-11-04），这里不再挂
+                showSort: false,
                 onTap: isOverdue ? () => st.setOverdueCollapsed(true) : null,
                 trailing: isOverdue
                     ? Row(
@@ -584,7 +593,6 @@ class _HomePageState extends State<HomePage> {
                     : null,
               ),
             );
-            first = false;
             // 本月组：先画「今日」小卡片，空一行，再画本月其余
             final List<Todo>? pin = g.pinItems;
             if (pin != null && pin.isNotEmpty) {

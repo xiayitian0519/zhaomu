@@ -241,8 +241,14 @@ class _DetailPageState extends State<DetailPage> {
       isScrollControlled: true,
       builder: (BuildContext c) => StatefulBuilder(
         builder: (BuildContext c, void Function(void Function()) sheetSet) {
-          void setDay(DateTime d) {
+          // 2026-11-04：d 传 null = 选「不限日期」。这条永远不会进逾期组。
+          void setDay(DateTime? d) {
             sheetSet(() {
+              if (d == null) {
+                _due = null;
+                _dueHasTime = false;
+                return;
+              }
               _due = DateTime(
                 d.year,
                 d.month,
@@ -279,6 +285,11 @@ class _DetailPageState extends State<DetailPage> {
                         on: _due != null &&
                             sameDay(_due!, now.add(const Duration(days: 2))),
                         onTap: () => setDay(now.add(const Duration(days: 2)))),
+                    // 2026-11-04 用户要求：截止日期加一个「不限」。
+                    // 选了之后 due = null，这条永远不进逾期组。
+                    _pill('不限',
+                        on: _due == null,
+                        onTap: () => setDay(null)),
                     // 2026-10-26：日期不在细则里选了。想指定某一天，去日历页
                     // 点那一天新建（用户原话：「要选日期就用日历功能加就行，
                     // 待办细则里面只管时间」）。所以这个 pill 只管时刻 ——
@@ -439,7 +450,7 @@ class _DetailPageState extends State<DetailPage> {
   String _clockSummary(AppState st) {
     final List<String> parts = <String>[];
     if (_due == null) {
-      parts.add('还没设日期');
+      parts.add('不限日期');
     } else {
       parts.add(_dueHasTime
           ? '${shortDayLabel(_due!)} ${timeLabel(_due!)}'
