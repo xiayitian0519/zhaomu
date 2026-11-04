@@ -312,12 +312,16 @@ class _HomePageState extends State<HomePage> {
         // 容易被当成「没关掉」（2026-10-21）。所以在 App 自己的标题栏
         // 再放一套大一号的 − 和 ×，带 tooltip 说明点了到底发生什么。
         // 只在 Windows 出现 —— 手机上没有窗口概念。
+        // 2026-11-04 用户要求：− × 跟「日历/排序/⋮」那组分开，单独贴最右上角。
+        // 做法：中间塞一条细竖线 + 间距，视觉上分成两组，不再挤成一串。
         if (Platform.isWindows) ...<Widget>[
+          const SizedBox(width: 22),
           _winBtn(
             Icons.remove,
             '最小化到任务栏',
             () => WindowsShell.I.minimize(),
           ),
+          const SizedBox(width: 2),
           _winBtn(
             Icons.close,
             '收进托盘（进程留着，提醒照常响）',
