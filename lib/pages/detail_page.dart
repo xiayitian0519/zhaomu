@@ -36,7 +36,7 @@ class _DetailPageState extends State<DetailPage> {
   String _repeat = RepeatRule.none;
 
   /// 这条单独提前多少分钟；-1 = 跟随设置默认
-  int _ahead = -1;
+  int _ahead = 5;
 
   /// 用户明确点了「不提醒」。
   ///
@@ -62,7 +62,8 @@ class _DetailPageState extends State<DetailPage> {
     _priority = t.priority;
     _listName = t.listName;
     _repeat = t.repeat;
-    _ahead = t.aheadMinutes;
+    // 老存档里可能是 -1（旧的「跟随设置」），当作全局默认值
+    _ahead = t.aheadMinutes < 0 ? AppState.I.defaultAheadMinutes : t.aheadMinutes;
     _remindOff = t.remindOff;
     _repeatDays = List<int>.of(t.repeatDays);
     _soundId = t.soundId;

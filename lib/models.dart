@@ -102,7 +102,7 @@ class Todo {
     this.done = false,
     DateTime? created,
     this.doneAt,
-    this.aheadMinutes = -1,
+    this.aheadMinutes = 5,
     this.remindOff = false,
     this.soundId = '',
     this.repeatDays = const <int>[],
@@ -140,7 +140,12 @@ class Todo {
         done: m['done'] == true,
         created: _parseDt(m['created']) ?? DateTime.now(),
         doneAt: _parseDt(m['doneAt']),
-        aheadMinutes: (m['aheadMinutes'] is num) ? (m['aheadMinutes'] as num).toInt() : -1,
+        // 2026-11-04：不再有「跟随设置」，老存档里的 -1 一律当 5 分钟处理
+        aheadMinutes: (m['aheadMinutes'] is num)
+            ? ((m['aheadMinutes'] as num).toInt() < 0
+                ? 5
+                : (m['aheadMinutes'] as num).toInt())
+            : 5,
         remindOff: m['remindOff'] == true,
         soundId: '${m['soundId'] ?? ''}',
         repeatDays: _daysFromJson(m['repeatDays']),
