@@ -9,6 +9,66 @@
 
 ---
 
+## 2.25.0+53 — 2026-11-04
+
+### 更新摘要
+
+- 日历页加了周视图和日视图，点标题切换
+- 新增桌面小组件：手机上放一个，直接看今天几条待办，不用开 App
+
+### 新功能一：周视图 + 日视图
+
+日历页标题现在可以点，弹出「月视图 / 周视图 / 日视图」三选一：
+
+1. **月视图**（原有的）：看整月分布
+2. **周视图**：一屏 7 列，每列是当天，最多显示 3 条待办（超了显示 +N），
+   点列头直接切到那天的日视图。左右箭头按周翻
+3. **日视图**：只看一天，日期头显示「今天/明天」和一共几条，
+   下面是大列表（复用原来的待办行），左右箭头按天翻
+
+AppBar 的左右箭头会跟着视图变：月视图翻月、周视图翻周、日视图翻天。
+
+### 新功能二：桌面小组件
+
+安卓桌面长按 → 添加小组件 → 找「朝暮」，拖一个 4x2 的到桌面。
+
+显示内容：
+1. 顶部：朝暮 / 今天几号星期几 / 共几条
+2. 中间：最多 5 条待办，左边有颜色条（红=重要且紧急、黄=重要不紧急、
+   蓝=不重要但紧急、灰=都不算）
+3. 逾期的条目前面加「! 」
+4. 超过 5 条显示「还有 N 条」
+5. 点任意位置打开 App
+
+**技术实现**（没有引入任何新依赖）：
+Flutter 用 dart:io 把存档写在 `app_flutter/chaomu/chaomu.json`，
+小组件是另一个进程，读不到 Flutter 的内存，但能直接读这个文件 ——
+所以不需要 MethodChannel、不需要 shared_preferences 桥接。
+
+小组件代码：`android/app/src/main/kotlin/com/xiayitian/chaomu/ChaomuWidget.kt`
+
+### 新增/改动的文件
+
+1. `lib/pages/calendar_page.dart` 32,005 → **42,103**：加 `_view` 状态、`_pickView`、
+   `_titleText`、`_shift`、`_weekBody`、`_weekColumn`、`_dayBody`
+2. 新增 `android/app/src/main/kotlin/com/xiayitian/chaomu/ChaomuWidget.kt`
+3. 新增 `android/app/src/main/res/layout/widget_chaomu.xml`
+4. 新增 `android/app/src/main/res/drawable/widget_bg.xml`
+5. 新增 `android/app/src/main/res/xml/widget_chaomu_info.xml`
+6. 新增 `android/app/src/main/res/values/strings.xml`
+7. `android/app/src/main/AndroidManifest.xml` 5,847 → **6,329**：注册小组件 receiver
+
+### 小组件的两个已知限制（重要）
+
+1. **刷新靠系统定时，最小 30 分钟**。`updatePeriodMillis` 填小于 1800000 系统会忽略。
+   所以改完待办，桌面小组件最多要等半小时才变。
+2. **小米/红米上定时刷新经常不执行**（省电策略杀后台）。用户要去
+   设置 → 应用管理 → 朝暮 → 自启动打开、省电策略选「无限制」，才会稳定。
+
+### 验证
+
+见本轮任务回报。
+
 ## 2.24.4+52 — 2026-11-04
 
 ### 更新摘要

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  朝暮桌面小组件的元数据（2026-11-04 新增）。
+
+  updatePeriodMillis：系统允许的最小值是 30 分钟（1800000）。
+  再小系统会忽略。想更勤只能加 WorkManager 或让用户手点刷新。
+  小米/红米上这个定时刷新经常被省电策略掐掉，用户要去系统设置放行。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/widget_chaomu"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_desc" />

@@ -5,6 +5,10 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.25.0', '2026-11-04', <String>[
+    '日历页加了周视图和日视图，点标题切换',
+    '新增桌面小组件：手机上放一个，直接看今天几条待办，不用开 App',
+  ]),
   AppUpdate('2.24.4', '2026-11-04', <String>[
     '导入 TDL 现在能认提醒时间和备注了，预览页都能手改',
     '修了一个时刻丢失的 bug：AI 算出「下午三点」，导进去只显示日期、不显示三点',

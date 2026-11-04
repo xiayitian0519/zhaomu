@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">朝暮</string>
+    <string name="widget_desc">在桌面看今天的待办，点一下打开朝暮</string>
+</resources>

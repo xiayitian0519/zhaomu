@@ -108,6 +108,10 @@ class _CalendarPageState extends State<CalendarPage> {
   late DateTime _month; // 当前显示的月（1 号）
   late DateTime _selected; // 选中的日期
 
+  /// 视图：'month' 月 / 'week' 周 / 'day' 日
+  /// 2026-11-04 用户要求加周视图和日视图。存内存即可，跨次启动回到月视图。
+  String _view = 'month';
+
   @override
   void initState() {
     super.initState();
@@ -584,19 +588,37 @@ class _CalendarPageState extends State<CalendarPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          '${_month.year}年${_month.month}月',
-          style: const TextStyle(fontSize: 16),
+        // 标题可点：弹菜单切 月/周/日（2026-11-04）
+        title: InkWell(
+          onTap: _pickView,
+          borderRadius: BorderRadius.circular(6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(_titleText(),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              // 用文字三角而不是 Icon —— 2026-11-04 实测 Icons.arrow_drop_down
+              // 在这个位置不渲染（可能是 tree-shake 没保住），文字一定在
+              const Padding(
+                padding: EdgeInsets.only(left: 2, top: 1),
+                child: Text('▾', style: TextStyle(fontSize: 13, color: Color(0xFF185FA5))),
+              ),
+            ],
+          ),
         ),
         actions: <Widget>[
           IconButton(
-            tooltip: '上一月',
-            onPressed: () => _shiftMonth(-1),
+            tooltip: _view == 'month'
+                ? '上一月'
+                : (_view == 'week' ? '上一周' : '前一天'),
+            onPressed: () => _shift(-1),
             icon: const Icon(Icons.chevron_left),
           ),
           IconButton(
-            tooltip: '下一月',
-            onPressed: () => _shiftMonth(1),
+            tooltip: _view == 'month'
+                ? '下一月'
+                : (_view == 'week' ? '下一周' : '后一天'),
+            onPressed: () => _shift(1),
             icon: const Icon(Icons.chevron_right),
           ),
           TextButton(
@@ -624,7 +646,92 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   /// 日历页主体（包 try/catch 做白屏诊断）
+  /// 标题文案（按视图变）
+  String _titleText() {
+    if (_view == 'month') return '${_month.year}年${_month.month}月';
+    if (_view == 'week') {
+      final DateTime mon =
+          _selected.subtract(Duration(days: _selected.weekday - 1));
+      final DateTime sun = mon.add(const Duration(days: 6));
+      if (mon.month == sun.month) {
+        return '${mon.month}月${mon.day}日 - ${sun.day}日';
+      }
+      return '${mon.month}月${mon.day}日 - ${sun.month}月${sun.day}日';
+    }
+    return '${_selected.month}月${_selected.day}日 ${_weekdayFull(_selected)}';
+  }
+
+  static String _weekdayFull(DateTime d) =>
+      const <String>['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日']
+          [d.weekday - 1];
+
+  /// 点标题：选视图
+  Future<void> _pickView() async {
+    final String? v = await showDialog<String>(
+      context: context,
+      builder: (BuildContext c) => SimpleDialog(
+        title: const Text('看哪个视图', style: TextStyle(fontSize: 15)),
+        children: <Widget>[
+          _viewItem(c, 'month', '月视图', '看整月分布'),
+          _viewItem(c, 'week', '周视图', '一屏看七天，每天几条一目了然'),
+          _viewItem(c, 'day', '日视图', '只看一天，列表大一点好点'),
+        ],
+      ),
+    );
+    if (v != null) setState(() => _view = v);
+  }
+
+  Widget _viewItem(BuildContext c, String value, String title, String sub) {
+    final bool on = _view == value;
+    return SimpleDialogOption(
+      onPressed: () => Navigator.of(c).pop(value),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            on ? Icons.check_circle : Icons.circle_outlined,
+            size: 18,
+            color: on ? const Color(0xFF185FA5) : const Color(0xFFB8BDC8),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: on ? FontWeight.w700 : FontWeight.w400,
+                ),
+              ),
+              Text(sub, style: const TextStyle(fontSize: 11.5, color: Color(0xFF9A9A9A))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 左右箭头：按当前视图走月 / 周 / 日
+  void _shift(int delta) {
+    if (_view == 'month') {
+      _shiftMonth(delta);
+      return;
+    }
+    setState(() {
+      if (_view == 'week') {
+        _selected = _selected.add(Duration(days: 7 * delta));
+      } else {
+        _selected = _selected.add(Duration(days: delta));
+      }
+      _month = DateTime(_selected.year, _selected.month, 1);
+    });
+  }
+
   Widget _calBody(AppState st) {
+    // 2026-11-04 加的两个新视图，直接顶掉原来的月历主体
+    if (_view == 'week') return _weekBody(st);
+    if (_view == 'day') return _dayBody(st);
+
     final bool collapsed = st.calendarListCollapsed;
 
     // 星期图例（色片）：只在默认态显示（展开态格子右上角有中文星期）
@@ -722,6 +829,193 @@ class _CalendarPageState extends State<CalendarPage> {
           Expanded(child: SingleChildScrollView(child: _expandedGrid(st))),
         ],
       ],
+    );
+  }
+
+  /// 日视图：只看选中那天，列表大一点
+  Widget _dayBody(AppState st) {
+    return Column(
+      children: <Widget>[
+        // 日期头：左右各一个可点的前一天/后一天
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          color: const Color(0xFFF7F8FA),
+          child: Row(
+            children: <Widget>[
+              Text(
+                relativeDayLabel(_selected),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9A9A9A)),
+              ),
+              const Spacer(),
+              Text(
+                '${st.onDay(_selected).length} 条',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9A9A9A)),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(child: _dayList()),
+        _inputBar(),
+      ],
+    );
+  }
+
+  /// 周视图：一屏 7 列，每列当天最多显示 3 条，点列头切到日视图
+  Widget _weekBody(AppState st) {
+    final DateTime today = dayOf(DateTime.now());
+    final DateTime monday =
+        _selected.subtract(Duration(days: _selected.weekday - 1));
+
+    return Column(
+      children: <Widget>[
+        // 顶部：本周日期范围提示
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+          color: const Color(0xFFF7F8FA),
+          child: Row(
+            children: <Widget>[
+              Text(
+                '本周 ${monday.month}/${monday.day} 起',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9A9A9A)),
+              ),
+              const Spacer(),
+              Text(
+                '点日期看当天',
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFFB8BDC8)),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: List<Widget>.generate(7, (int i) {
+              final DateTime d = monday.add(Duration(days: i));
+              final List<Todo> items = st.onDay(d);
+              st.sortGroup(items);
+              final bool isSel = sameDay(d, _selected);
+              final bool isToday = sameDay(d, today);
+              return Expanded(
+                child: _weekColumn(
+                  d: d,
+                  items: items,
+                  isSel: isSel,
+                  isToday: isToday,
+                ),
+              );
+            }),
+          ),
+        ),
+        const Divider(height: 1),
+        _inputBar(),
+      ],
+    );
+  }
+
+  Widget _weekColumn({
+    required DateTime d,
+    required List<Todo> items,
+    required bool isSel,
+    required bool isToday,
+  }) {
+    final int maxShow = 3;
+    final int rest = items.length - maxShow;
+
+    return InkWell(
+      onTap: () => setState(() {
+        _selected = d;
+        _view = 'day';
+      }),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSel ? const Color(0xFFEFF5FB) : null,
+          border: Border(
+            left: BorderSide(color: const Color(0xFFEDEFF3), width: 0.8),
+          ),
+        ),
+        padding: const EdgeInsets.fromLTRB(3, 6, 3, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // 日期头
+            Center(
+              child: Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isToday ? const Color(0xFF185FA5) : null,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${d.day}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isToday || isSel ? FontWeight.w700 : FontWeight.w400,
+                    color: isToday
+                        ? Colors.white
+                        : (isSel ? const Color(0xFF185FA5) : const Color(0xFF5F5E5A)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Center(
+              child: Text(
+                _weekdayNames[d.weekday - 1],
+                style: const TextStyle(fontSize: 10, color: Color(0xFFB8BDC8)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            // 待办（最多 3 条）
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    for (int i = 0; i < items.length && i < maxShow; i++)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (items[i].done
+                                  ? const Color(0xFFB8BDC8)
+                                  : _todoColors[_todoIdx(items, items[i], i, d.weekday)])
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          items[i].title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            height: 1.25,
+                            color: items[i].done
+                                ? const Color(0xFFB8BDC8)
+                                : _todoColors[_todoIdx(items, items[i], i, d.weekday)],
+                            decoration: items[i].done && !AppState.I.noStrike
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
+                        ),
+                      ),
+                    if (rest > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(
+                          '+$rest',
+                          style: const TextStyle(fontSize: 9.5, color: Color(0xFF9A9A9A)),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
