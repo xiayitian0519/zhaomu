@@ -43,9 +43,6 @@ class AppState extends ChangeNotifier {
 
   // ---- 导入 TDL 的 AI 设置（2026-11-04，见接口契约 3.6）----
 
-  /// 用户自己填的智谱 API Key，空 = 用代码里的内置 key
-  String aiKey = '';
-
   /// 今天已经用了几次 AI 整理
   int aiDailyCount = 0;
 
@@ -77,10 +74,6 @@ class AppState extends ChangeNotifier {
     await save();
   }
 
-  Future<void> setAiKey(String v) async {
-    aiKey = v.trim();
-    await save();
-  }
 
   /// 几点之后记的待办算明天（默认 00:00 = 不偏移）
   int dayStartHour = 0;
@@ -201,7 +194,6 @@ class AppState extends ChangeNotifier {
     if (m['sortMode'] is String) sortMode = m['sortMode'] as String;
     if (m['noStrike'] is bool) noStrike = m['noStrike'] as bool;
     // 2026-11-04：老存档没这三个字段，按默认值补，不用迁移
-    if (m['aiKey'] is String) aiKey = m['aiKey'] as String;
     if (m['aiDailyCount'] is num) aiDailyCount = (m['aiDailyCount'] as num).toInt();
     if (m['aiCountDay'] is String) aiCountDay = m['aiCountDay'] as String;
     if (m['historyMode'] is String) historyMode = m['historyMode'] as String;
@@ -298,7 +290,6 @@ class AppState extends ChangeNotifier {
         'quadrantColors': quadrantColorValues,
         'sortMode': sortMode,
         'noStrike': noStrike,
-        'aiKey': aiKey,
         'aiDailyCount': aiDailyCount,
         'aiCountDay': aiCountDay,
         'dayStartHour': dayStartHour,

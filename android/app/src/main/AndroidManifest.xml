@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- 电池优化白名单：让用户能在系统页把朝暮设为「不优化」 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- 检查更新：App 自己下载 APK 后要交给系统安装器打开（2026-11-04 新增） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!-- 跳系统设置页需要查询目标 Activity 是否存在（android_intent_plus 的 canResolveActivity） -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -24,6 +26,18 @@
         android:label="朝暮"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <!-- 检查更新：把下好的 APK 以 content:// 交给系统安装器 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

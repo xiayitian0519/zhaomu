@@ -9,6 +9,76 @@
 
 ---
 
+## 2.24.1+49 — 2026-11-04
+
+### 更新摘要
+
+- 检查更新挪进设置，真能用了：点一下查最新版，有新版本直接下载安装，不再跳网页
+- 导入了就不问 Key 了：删掉「填 Key」入口，统一用代码里的内置智谱 Key
+- 「导入 TDL（AI 整理）」简化成「导入 TDL」
+- 删掉「已完成」页，功能并进历史记录
+
+### 改动一：检查更新收进设置，改成真下载
+
+1. 删掉三点菜单里的「检查更新」和 `home_page.dart` 的 `_checkUpdate()` 方法（约 55 行）
+2. 设置页原来那个「检查更新」是**「功能开发中，敬请期待」的占位**，现在真做了：
+   - 查 GitHub Release → 比对版本
+   - 有新版本弹窗，按钮「下载并安装」
+   - 安卓：下 APK 到应用私有目录 → FileProvider 交给系统安装器
+   - 电脑：下 zip 到下载目录 → 打开资源管理器定位
+   - 下载过程有进度条
+   - 下载失败自动退回打开下载页
+3. 安卓原生配置（新增）：
+   - `AndroidManifest.xml` 加 `REQUEST_INSTALL_PACKAGES` 权限
+   - `AndroidManifest.xml` 加 `FileProvider`（authority = `${applicationId}.fileprovider`）
+   - 新增 `android/app/src/main/res/xml/file_paths.xml`
+
+### 改动二：删掉用户填 Key
+
+1. `import_tdl_page.dart` 删掉右上角「填 Key / 换 Key」按钮
+2. 删掉整个 `_KeyPage` 类（约 2,900 字节）
+3. `app_state.dart` 删掉 `aiKey` 字段和 `setAiKey()` 方法（存档里对应的三个字段只剩两个）
+4. `_key` getter 直接返回 `kBuiltinKey`
+5. 内置 Key 为空时的提示改成：「AI 还没配好：代码里的内置 Key 是空的」
+
+### 改动三：文案
+
+1. `home_page.dart` 菜单：「导入 TDL（AI 整理）」→「导入 TDL」
+2. `settings_page.dart` 智能组：同上
+
+### 改动四：删「已完成」页
+
+1. 删菜单项「已完成」和跳转分支
+2. 删 `lib/pages/done_page.dart`（6,505 字节）
+3. 清掉 `home_page.dart` 的 import
+4. 想看已完成的待办走「历史记录」
+
+### 文件变动
+
+1. `lib/pages/import_tdl_page.dart` 14,688 → **11,753**
+2. `lib/ai_tdl.dart` 8,403 → **8,431**
+3. `lib/app_state.dart` 32,534 → **32,269**
+4. `lib/pages/home_page.dart` 25,924 → **23,537**
+5. `lib/pages/settings_page.dart` 51,186 → **56,639**
+6. `lib/updater.dart` 3,863 → **6,758**（加下载 + 安装）
+7. `android/app/src/main/AndroidManifest.xml` 4,759 → **5,428**
+8. 新增 `android/app/src/main/res/xml/file_paths.xml`
+9. 删除 `lib/pages/done_page.dart`
+
+### 要说清楚的一件事
+
+安卓「下载完自动拉起安装器」这段**没有真机验证过**（电脑没连手机，adb 也没设备）。
+代码按标准做法写的：APK 下到 `getExternalStorageDirectory()`，FileProvider 映射到
+`downloads`，intent 带 `FLAG_GRANT_READ_URI_PERMISSION` 和
+`application/vnd.android.package-archive`。装到手机上点一次就知道通不通。
+
+如果跳不过去，App 会退回到「打开 GitHub 下载页」，不会卡死。
+
+### 内置 Key 现在还是空的
+
+`lib/ai_tdl.dart` 的 `kBuiltinKey` 依然是空字符串。要真用「导入 TDL」，
+把智谱的 key 写进那一行再重新打包。
+
 ## 2.24.0+48 — 2026-11-04
 
 ### 更新摘要

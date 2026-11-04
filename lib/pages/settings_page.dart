@@ -16,6 +16,7 @@ import '../reminder_windows.dart';
 import '../sound_lib.dart';
 import '../store.dart';
 import '../update_log_page.dart';
+import '../updater.dart';
 import '../widgets.dart';
 import '../windows_shell.dart';
 import 'import_tdl_page.dart';
@@ -628,6 +629,170 @@ class SettingsPage extends StatelessWidget {
 
   /// 跳到系统的「待办提醒」渠道设置页
   @override
+  /// 检查更新 + 下载安装（2026-11-04）。
+  ///
+  /// 用户要求「点检查更新就能开始下载」，所以不再是跳网页：
+  ///   安卓 —— 下 APK，交给系统安装器（FileProvider）
+  ///   电脑 —— 下 zip，打开资源管理器定位
+  Future<void> _checkUpdate(BuildContext ctx) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(ctx);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('正在查最新版本…'), duration: Duration(seconds: 2)),
+    );
+
+    final String current = await Updater.currentVersion();
+    final UpdateInfo? info = await Updater.check();
+    if (!ctx.mounted) return;
+
+    if (info == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('查不到，可能是断网或者 GitHub 访问不了')),
+      );
+      return;
+    }
+
+    final bool newer = Updater.isNewer(current, info.latest);
+    final bool same = current.compareTo(info.latest) == 0;
+    final String? url = Platform.isAndroid ? info.apkUrl : info.zipUrl;
+
+    // 三种情况分开说，别混成一句「已经是最新版」——
+    // 本地开发版比线上新的时候（比如现在：本地 2.24.1 / 线上 2.22.1），
+    // 说「已经是最新版」会让人以为两边一样。
+    final String title = newer
+        ? '有新版本 ${info.latest}'
+        : (same ? '已经是最新版' : '你用的是开发版');
+    final String body = newer
+        ? (info.notes.isEmpty ? '当前 $current，可以更新到 ${info.latest}。' : info.notes)
+        : (same
+            ? '当前 $current，已经是最新的。'
+            : '当前 $current，线上发布的最新是 ${info.latest}。\n\n'
+                '你现在跑的是比线上还新的开发版，不用更新。');
+
+    final String? action = await showDialog<String>(
+      context: ctx,
+      builder: (BuildContext c) => AlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(
+          child: Text(body, style: const TextStyle(fontSize: 13, height: 1.6)),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(c).pop('log'),
+            child: const Text('看更新日志'),
+          ),
+          if (newer && url != null)
+            TextButton(
+              onPressed: () => Navigator.of(c).pop('download'),
+              child: const Text('下载并安装'),
+            ),
+          if (newer && url == null)
+            TextButton(
+              onPressed: () => Navigator.of(c).pop('page'),
+              child: const Text('去下载页'),
+            ),
+        ],
+      ),
+    );
+
+    if (!ctx.mounted || action == null) return;
+
+    if (action == 'log') {
+      await Navigator.of(ctx).push(
+        MaterialPageRoute<void>(builder: (_) => const UpdateLogPage()),
+      );
+      return;
+    }
+    if (action == 'page') {
+      await Updater.openPage(info.pageUrl);
+      return;
+    }
+
+    // ---- 下载 ----
+    final ValueNotifier<double> prog = ValueNotifier<double>(0);
+    final String fileName = Platform.isAndroid
+        ? 'chaomu-${info.latest}.apk'
+        : 'chaomu-${info.latest}-windows.zip';
+
+    // 进度框
+    showDialog<void>(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (BuildContext c) => AlertDialog(
+        title: const Text('正在下载'),
+        content: ValueListenableBuilder<double>(
+          valueListenable: prog,
+          builder: (BuildContext c, double v, _) {
+            final int pct = (v * 100).clamp(0, 100).round();
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                LinearProgressIndicator(
+                  value: v <= 0 ? null : v,
+                  minHeight: 6,
+                  backgroundColor: const Color(0xFFE6E9EF),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  v <= 0 ? '正在连接…' : '$pct%',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF8A91A0)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  fileName,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFFB4BAC6)),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+
+    File? file;
+    String? err;
+    try {
+      file = await Updater.download(
+        url: url!,
+        fileName: fileName,
+        onProgress: (int r, int t) {
+          if (t > 0) prog.value = r / t;
+        },
+      );
+    } catch (e) {
+      err = e.toString();
+    }
+
+    if (!ctx.mounted) return;
+    Navigator.of(ctx).pop(); // 关进度框
+    prog.dispose();
+
+    if (file == null) {
+      final bool ok = await Updater.openPage(info.pageUrl);
+      if (ctx.mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(ok
+                ? '下载失败（${err ?? '未知原因'}），已帮你打开下载页'
+                : '下载失败，手动访问：${info.pageUrl}'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final bool ok = await Updater.install(file);
+    if (!ctx.mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(ok
+            ? (Platform.isAndroid ? '已下好，按系统提示安装' : '已下好，在打开的文件夹里')
+            : '已下到：${file.path}'),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   Widget build(BuildContext context) {
     final AppState st = AppState.I;
 
@@ -678,7 +843,7 @@ class SettingsPage extends StatelessWidget {
               _card(<Widget>[
                 ListTile(
                   leading: const Icon(Icons.auto_awesome, color: Color(0xFF185FA5)),
-                  title: const Text('导入 TDL（AI 整理）', style: TextStyle(fontSize: 14)),
+                  title: const Text('导入 TDL', style: TextStyle(fontSize: 14)),
                   subtitle: Text(
                     '粘一段文字，自动拆成待办。今天还剩 ${50 - st.aiUsedToday} 次',
                     style: const TextStyle(fontSize: 12),
@@ -841,15 +1006,12 @@ class SettingsPage extends StatelessWidget {
                 ),
                 ListTile(
                   title: const Text('检查更新', style: TextStyle(fontSize: 14)),
+                  subtitle: const Text(
+                    '查一下有没有新版本',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   trailing: const Icon(Icons.chevron_right, size: 18),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('功能开发中，敬请期待'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                  onTap: () => _checkUpdate(context),
                 ),
                 ListTile(
                   title: const Text('更新日志', style: TextStyle(fontSize: 14)),

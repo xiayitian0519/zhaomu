@@ -33,7 +33,8 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
 
   AppState get st => AppState.I;
 
-  String get _key => st.aiKey.trim().isNotEmpty ? st.aiKey.trim() : kBuiltinKey;
+  // 2026-11-04 用户拍板：不给用户填 Key 的入口，统一用代码里的内置 Key
+  String get _key => kBuiltinKey;
 
   int get _left => kDailyLimit - st.aiUsedToday;
 
@@ -103,16 +104,6 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('导入 TDL', style: TextStyle(fontSize: 16)),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const _KeyPage()),
-            ),
-            style: TextButton.styleFrom(foregroundColor: _blue),
-            child: Text(_key.isEmpty ? '填 Key' : '换 Key'),
-          ),
-          const SizedBox(width: 6),
-        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
@@ -361,85 +352,5 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
     setState(() {
       a.due = d;
     });
-  }
-}
-
-/// 填 AI Key 的小页（导入页右上角进去）。
-class _KeyPage extends StatefulWidget {
-  const _KeyPage();
-
-  @override
-  State<_KeyPage> createState() => _KeyPageState();
-}
-
-class _KeyPageState extends State<_KeyPage> {
-  late final TextEditingController _c =
-      TextEditingController(text: AppState.I.aiKey);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Key', style: TextStyle(fontSize: 16)),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: <Widget>[
-          const Text(
-            '去 open.bigmodel.cn 注册一个账号，控制台里能生成 API Key（形如 xxxxx.yyyyy）。',
-            style: TextStyle(fontSize: 12.5, color: Color(0xFF8A91A0), height: 1.7),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '不填也能用，用我内置的额度（每天 50 次）。填了自己的就优先用你的，不限次数。',
-            style: TextStyle(fontSize: 12.5, color: Color(0xFF8A91A0), height: 1.7),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _c,
-            maxLines: 3,
-            style: const TextStyle(fontSize: 13.5),
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: '粘 Key 到这里',
-              hintStyle: TextStyle(fontSize: 13, color: Color(0xFFB4BAC6)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: () async {
-              await AppState.I.setAiKey(_c.text);
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF185FA5),
-              minimumSize: const Size(0, 46),
-            ),
-            child: const Text('保存'),
-          ),
-          if (AppState.I.aiKey.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () async {
-                await AppState.I.setAiKey('');
-                if (!context.mounted) return;
-                setState(() => _c.text = '');
-              },
-              child: const Text(
-                '清空，改回用内置额度',
-                style: TextStyle(fontSize: 12.5, color: Color(0xFF8A91A0)),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 }

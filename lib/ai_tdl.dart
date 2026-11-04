@@ -101,7 +101,7 @@ class AiTdl {
   }) async {
     final String key = apiKey.trim();
     if (key.isEmpty) {
-      throw AiException('还没有填 AI Key。去「设置 → AI 整理 → 填 Key」里贴一个，或者让我帮你内置。');
+      throw AiException('AI 还没配好：代码里的内置 Key 是空的。需要把智谱的 key 写进 lib/ai_tdl.dart 的 kBuiltinKey 再重新打包。');
     }
     if (usedToday >= kDailyLimit) {
       throw AiException('今天的 $kDailyLimit 次已经用完了，明天再来。想接着用就在设置里填自己的 Key。');

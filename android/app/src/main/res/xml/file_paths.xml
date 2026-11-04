@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  给「检查更新」用：App 自己下好的 APK 要通过 FileProvider 交给系统安装器。
+  没有这个文件，安卓会报 FileUriExposedException，安装跳不过去。
+
+  2026-11-04 新增。
+-->
+<paths>
+    <!-- getExternalStorageDirectory() 落在 /storage/emulated/0/Android/data/<包名>/files -->
+    <external-files-path name="downloads" path="." />
+    <!-- 兜底：临时目录 -->
+    <cache-path name="cache" path="." />
+</paths>
