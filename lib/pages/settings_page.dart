@@ -18,6 +18,7 @@ import '../store.dart';
 import '../update_log_page.dart';
 import '../widgets.dart';
 import '../windows_shell.dart';
+import 'import_tdl_page.dart';
 import 'review_history_page.dart';
 import 'sound_page.dart';
 
@@ -671,6 +672,24 @@ class SettingsPage extends StatelessWidget {
               ]),
 
               // 「清单」设置区块已于 2026-10-16 删除，见 app_state.dart 的说明
+
+              // 2026-11-04：AI 整理入口（导入 TDL）
+              _sectionTitle('智能'),
+              _card(<Widget>[
+                ListTile(
+                  leading: const Icon(Icons.auto_awesome, color: Color(0xFF185FA5)),
+                  title: const Text('导入 TDL（AI 整理）', style: TextStyle(fontSize: 14)),
+                  subtitle: Text(
+                    '粘一段文字，自动拆成待办。今天还剩 ${50 - st.aiUsedToday} 次',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const ImportTdlPage()),
+                  ),
+                ),
+              ]),
+
               _sectionTitle('数据'),
               _card(<Widget>[
                 FutureBuilder<String>(

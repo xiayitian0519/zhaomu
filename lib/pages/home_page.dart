@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../updater.dart';
 import '../guide.dart';
 import '../models.dart';
 import '../notifier.dart';
@@ -14,6 +15,7 @@ import 'detail_page.dart';
 import 'done_page.dart';
 import 'history_page.dart';
 import 'review_page.dart';
+import 'import_tdl_page.dart';
 import 'settings_page.dart';
 import 'tdl_page.dart';
 
@@ -225,6 +227,62 @@ class _HomePageState extends State<HomePage> {
         textStyle: const TextStyle(fontSize: 13),
       );
 
+  /// 检查更新：查 GitHub Release，有新版本就弹窗。
+  ///
+  /// 只做「告诉 + 打开下载页」，不在 App 内下 APK 装（见 updater.dart 的说明）。
+  Future<void> _checkUpdate() async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('正在查最新版本…'), duration: Duration(seconds: 2)),
+    );
+    final String current = await Updater.currentVersion();
+    final UpdateInfo? info = await Updater.check();
+    if (!mounted) return;
+
+    if (info == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('查不到，可能是断网或者 GitHub 访问不了')),
+      );
+      return;
+    }
+    if (!Updater.isNewer(current, info.latest)) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('已经是最新版 $current')),
+      );
+      return;
+    }
+
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext c) => AlertDialog(
+        title: Text('有新版本 ${info.latest}'),
+        content: SingleChildScrollView(
+          child: Text(
+            info.notes.isEmpty ? '去下载页看看这版改了什么。' : info.notes,
+            style: const TextStyle(fontSize: 13, height: 1.6),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(false),
+            child: const Text('先不更新'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(true),
+            child: const Text('去下载'),
+          ),
+        ],
+      ),
+    );
+    if (go != true) return;
+    final bool ok = await Updater.openDownloadPage(info.pageUrl);
+    if (!ok && mounted) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('打不开浏览器，手动访问：${info.pageUrl}')),
+      );
+    }
+  }
+
   PreferredSizeWidget _appBar(AppState st) {
     return AppBar(
       titleSpacing: 16,
@@ -285,6 +343,15 @@ class _HomePageState extends State<HomePage> {
               Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
               );
+            } else if (v == 'import') {
+              // 2026-11-04 用户要求的「导入 TDL」：粘一段文字，AI 拆成待办
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ImportTdlPage(),
+                ),
+              );
+            } else if (v == 'update') {
+              _checkUpdate();
             } else if (v == 'strike') {
               // 「无划线」原来占着 AppBar 一个位置，2026-11-04 给排序让位，
               // 挪进这个菜单（低频开关）。
@@ -296,6 +363,9 @@ class _HomePageState extends State<HomePage> {
               value: 'strike',
               child: Text(st.noStrike ? '显示完成划线' : '隐藏完成划线'),
             ),
+            const PopupMenuDivider(),
+            const PopupMenuItem<String>(value: 'import', child: Text('导入 TDL（AI 整理）')),
+            const PopupMenuItem<String>(value: 'update', child: Text('检查更新')),
             const PopupMenuDivider(),
             const PopupMenuItem<String>(value: 'tdl', child: Text('TDL 时间轴')),
             const PopupMenuItem<String>(value: 'done', child: Text('已完成')),

@@ -11,6 +11,7 @@ import 'pages/calendar_page.dart';
 import 'pages/detail_page.dart';
 import 'pages/home_page.dart';
 import 'pages/onboard_page.dart';
+import 'pages/import_tdl_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/sound_page.dart';
 import 'sound_lib.dart';
@@ -98,6 +99,14 @@ Future<void> main(List<String> args) async {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       rootNavKey.currentState?.push(
         MaterialPageRoute<void>(builder: (_) => const SettingsPage()),
+      );
+    });
+  }
+  // 调试入口：`chaomu.exe --import` 直接进「导入 TDL」页（截图 / 排查用）
+  if (args.contains('--import')) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      rootNavKey.currentState?.push(
+        MaterialPageRoute<void>(builder: (_) => const ImportTdlPage()),
       );
     });
   }

@@ -9,6 +9,55 @@
 
 ---
 
+## 2.24.0+48 — 2026-11-04
+
+### 更新摘要
+
+- 新增「导入 TDL」：把 TDL、会议记录、聊天里的一段话粘进来，AI 自动拆成一条条待办，拆完能勾选、能改标题和日期
+- 新增「检查更新」：右上角三点菜单点一下，查到新版本直接跳下载页
+- 设置里多了「智能」分组，能看到今天还剩几次 AI 整理额度
+
+### 新增功能一：导入 TDL（AI 整理）
+
+入口两处：右上角三点菜单「导入 TDL（AI 整理）」、设置 → 智能。
+
+流程：粘文字 → 点「AI 整理」→ 预览（每条可勾选、标题可改、日期可点、优先级和重复可切）→ 点「导入 N 条」建进待办。
+
+模型用智谱 GLM-4-Flash（免费、国内可直连）。Key 有两套：
+1. 内置额度：写在 `lib/ai_tdl.dart` 的 `kBuiltinKey`，每天 50 次
+2. 用户自己的：导入页右上角「填 Key」，填了优先用自己的，不限次数
+
+拆解规则写在 `_systemPrompt` 里：标题压到 20 字内、日期转 ISO 8601、优先级按四象限猜、能看出重复规律的给每天/每周/每月/每年。返回严格 JSON 数组，代码里有兜底（去 markdown 代码块、只截第一个 `[` 到最后一个 `]`）。
+
+### 新增功能二：检查更新
+
+三点菜单「检查更新」→ 查 GitHub 最新 release → 弹窗显示版本号和更新说明 → 点「去下载」开浏览器到 release 页。
+
+**为什么不在 App 内下 APK 直接装**：安卓要配 FileProvider、申请「安装未知应用」权限，没真机反复试会翻车。先按稳的做，用户 2026-11-04 拍板「先做 App 内检查更新」。
+
+技术实现：`lib/updater.dart`，`http` 查 `api.github.com/repos/xiayitian0519/zhaomu/releases/latest`，`package_info_plus` 拿当前版本，只比主.次.补丁不管构建号。安卓用 `android_intent_plus` 发 ACTION_VIEW，Windows 用 `rundll32 url.dll,FileProtocolHandler`。
+
+### 改动清单
+
+1. 新增 `lib/ai_tdl.dart`（8,403 字节）—— AI 拆解 + 结果解析 + 字面值转换
+2. 新增 `lib/updater.dart`（3,863 字节）—— 检查更新 + 打开下载页
+3. 新增 `lib/pages/import_tdl_page.dart`（14,688 字节）—— 导入页面 + 填 Key 页
+4. `lib/app_state.dart`（31,019 → 32,534 字节）—— 加 `aiKey` / `aiDailyCount` / `aiCountDay` 三个字段 + `aiUsedToday` getter + `bumpAiCount()` / `setAiKey()`
+5. `lib/pages/home_page.dart`（23,350 → 25,924 字节）—— 菜单加「导入 TDL」「检查更新」+ `_checkUpdate()` 方法
+6. `lib/pages/settings_page.dart`（50,326 → 51,186 字节）—— 新增「智能」分组
+7. `pubspec.yaml`（5,549 → 5,640 字节）—— 加 `http: ^1.2.2`
+8. `接口契约-数据格式.md`（13,351 → 14,064 字节）—— 新增 3.6 节，定义三个新字段
+9. `lib/main.dart`（9,869 → 10,221 字节）—— 加 `--import` 调试入口，方便截图排查
+
+### 一个要你知道的前提
+
+`kBuiltinKey` 现在是**空的**。空的时候点「AI 整理」会提示「还没有填 AI Key」。
+要么你把智谱的 key 给我，我写进代码重新打包；要么你自己在导入页右上角「填 Key」里贴一个。
+
+### 验证
+
+见本轮任务回报。
+
 ## 2.23.0+47 — 2026-11-04
 
 ### 更新摘要
