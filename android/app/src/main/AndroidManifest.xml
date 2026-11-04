@@ -16,6 +16,12 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- 电池优化白名单：让用户能在系统页把朝暮设为「不优化」 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- 网络：导入 TDL 的 AI 整理要调智谱接口，检查更新要查 GitHub
+         2026-11-04 补加。Flutter 只在 debug/profile 的 Manifest 里带 INTERNET，
+         release 版不带 —— 漏了会报 DNS 解析失败（Failed host lookup）。 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
     <!-- 检查更新：App 自己下载 APK 后要交给系统安装器打开（2026-11-04 新增） -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <!-- 跳系统设置页需要查询目标 Activity 是否存在（android_intent_plus 的 canResolveActivity） -->

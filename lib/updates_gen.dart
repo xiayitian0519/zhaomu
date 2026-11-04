@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.24.3', '2026-11-04', <String>[
+    '修好了「导入 TDL 一点就报网络不通」—— 根因是 release 包没申请联网权限',
+  ]),
   AppUpdate('2.24.2', '2026-11-04', <String>[
     'AI 整理能真用了：内置智谱 Key 已填，装上就能拆 TDL',
     '修了一个日期算错的 bug：以前 AI 不知道今天几号，会把「明天」算成 2023 年',

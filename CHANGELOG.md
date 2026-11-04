@@ -9,6 +9,48 @@
 
 ---
 
+## 2.24.3+51 — 2026-11-04
+
+### 更新摘要
+
+- 修好了「导入 TDL 一点就报网络不通」—— 根因是 release 包没申请联网权限
+
+### 问题
+
+2.24.2 装到手机上，点「AI 整理」直接报：
+
+```
+ClientException with SocketException: Failed host lookup: 'open.bigmodel.cn'
+(OS Error: No address associated with hostname, errno = 7)
+```
+
+看着像断网，其实是 **APK 里压根没有 INTERNET 权限**，系统直接拒绝联网，
+连 DNS 都发不出去，所以报「找不到主机」。
+
+### 为什么之前没发现
+
+Flutter 只在 `android/app/src/debug/AndroidManifest.xml` 和 `profile/AndroidManifest.xml`
+里带 `INTERNET` 权限（给热重载用）。**`main/AndroidManifest.xml` 里没有，release 版就不带。**
+这个项目从 2.18 到 2.24.2 一直是纯本地功能（数据存 JSON、提醒走本地通知），
+从来不需要联网，所以这个坑一直没踩到。
+
+### 修法
+
+`android/app/src/main/AndroidManifest.xml` 加两条权限：
+
+1. `android.permission.INTERNET` —— 联网本身
+2. `android.permission.ACCESS_NETWORK_STATE` —— 判断当前有没有网
+
+### 验证方式
+
+编译后用 `aapt2 dump permissions` 查 APK 里确实有 `android.permission.INTERNET`，
+不能只看 Manifest 源文件。
+
+### 文件变动
+
+1. `android/app/src/main/AndroidManifest.xml` 5,428 → **5,847 字节**
+2. 其余不动
+
 ## 2.24.2+50 — 2026-11-04
 
 ### 更新摘要
