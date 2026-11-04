@@ -87,11 +87,36 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
         due: a.due,
         priority: AiTdl.priorityOf(a.priority),
       );
+
+      // add() 只接 title/due/priority/listName，其余细则补在这儿。
+      // 2026-11-04：之前漏了 dueHasTime —— AI 算出「下午三点」，
+      // 但 dueHasTime 是 false，列表只显示日期、详情页还显示「加个时间」。
+      bool dirty = false;
+
+      if (a.due != null && (a.due!.hour != 0 || a.due!.minute != 0)) {
+        t.dueHasTime = true;
+        dirty = true;
+      }
+
       final String rep = AiTdl.repeatOf(a.repeat);
       if (rep != RepeatRule.none) {
         t.repeat = rep;
-        await st.update(t);
+        dirty = true;
       }
+
+      final String nt = a.note.trim();
+      if (nt.isNotEmpty) {
+        t.note = nt;
+        dirty = true;
+      }
+
+      if (a.remind != null) {
+        t.remind = a.remind;
+        t.remindOff = false;
+        dirty = true;
+      }
+
+      if (dirty) await st.update(t);
     }
     if (!mounted) return;
     Navigator.of(context).pop(picked.length);
@@ -273,6 +298,14 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
                   a.due == null ? const Color(0xFFB4BAC6) : _blue,
                   () => _pickDate(i, a),
                 ),
+                // 提醒时间（2026-11-04 加）：AI 能识别，也能手点改
+                _tag(
+                  a.remind == null ? '不提醒' : _remindText(a.remind!),
+                  a.remind == null
+                      ? const Color(0xFFB4BAC6)
+                      : const Color(0xFFC0392B),
+                  () => _pickRemind(i, a),
+                ),
                 _tag(AiTdl.priorityLabel(a.priority), const Color(0xFF8A6D1E),
                     () => setState(() => a.priority = _nextPriority(a.priority))),
                 if (a.repeat != 'none')
@@ -280,6 +313,24 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
                     setState(() => a.repeat = _nextRepeat(a.repeat));
                   }),
               ],
+            ),
+          ),
+          // 备注（2026-11-04 加）：AI 从原文里抽的补充信息，也能手改
+          Padding(
+            padding: const EdgeInsets.fromLTRB(44, 0, 12, 8),
+            child: TextFormField(
+              initialValue: a.note,
+              maxLines: 2,
+              minLines: 1,
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF6B7280), height: 1.5),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: '备注（可选）',
+                hintStyle: TextStyle(fontSize: 12, color: Color(0xFFC4C9D4)),
+              ),
+              onChanged: (String v) => a.note = v,
             ),
           ),
         ],
@@ -315,6 +366,78 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
     if (diff == 2) return '后天$hm';
     if (diff == -1) return '昨天$hm';
     return '${d.month}月${d.day}日$hm';
+  }
+
+  /// 提醒时间的显示：今天/明天/几号 + 时分
+  static String _remindText(DateTime d) {
+    final DateTime now = DateTime.now();
+    final DateTime day = DateTime(d.year, d.month, d.day);
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final int diff = day.difference(today).inDays;
+    final String hm = '${d.hour.toString().padLeft(2, '0')}:'
+        '${d.minute.toString().padLeft(2, '0')}';
+    if (diff == 0) return '提醒 今天 $hm';
+    if (diff == 1) return '提醒 明天 $hm';
+    if (diff == 2) return '提醒 后天 $hm';
+    return '提醒 ${d.month}月${d.day}日 $hm';
+  }
+
+  /// 点提醒 chip：先选日期（可选「不提醒」），再选时分
+  Future<void> _pickRemind(int i, AiTodo a) async {
+    final DateTime now = DateTime.now();
+
+    // 已经设了提醒的话，再点一次就问要不要清掉
+    if (a.remind != null) {
+      final String? act = await showDialog<String>(
+        context: context,
+        builder: (BuildContext c) => AlertDialog(
+          title: const Text('提醒'),
+          content: Text(
+            _remindText(a.remind!).replaceFirst('提醒 ', ''),
+            style: const TextStyle(fontSize: 14),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(c).pop('edit'),
+              child: const Text('改时间'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(c).pop('clear'),
+              child: const Text('不提醒'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || act == null) return;
+      if (act == 'clear') {
+        setState(() => a.remind = null);
+        return;
+      }
+    }
+
+    final DateTime? d = await showDatePicker(
+      context: context,
+      initialDate: a.remind ?? a.due ?? now,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+      helpText: '提醒日期',
+      cancelText: '取消',
+      confirmText: '下一步',
+    );
+    if (!mounted || d == null) return;
+
+    final TimeOfDay? t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(a.remind ?? a.due ?? now),
+      helpText: '提醒时间',
+      cancelText: '取消',
+      confirmText: '确定',
+    );
+    if (!mounted || t == null) return;
+
+    setState(() {
+      a.remind = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    });
   }
 
   static String _repeatText(String r) => const <String, String>{

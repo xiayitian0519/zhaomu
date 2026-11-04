@@ -20,12 +20,20 @@ class AiTodo {
     this.due,
     this.priority = 'gray',
     this.repeat = 'none',
+    this.remind,
+    this.note = '',
   }) : editableTitle = title;
 
   final String title;
 
   /// 预览页允许改日期，所以不是 final
   DateTime? due;
+
+  /// 提醒时间（null = 不提醒）。预览页可改。
+  DateTime? remind;
+
+  /// 备注：原文里除动作外的补充信息（带什么、找谁、注意事项）。预览页可改。
+  String note;
 
   /// red / yellow / blue / gray
   String priority;
@@ -118,18 +126,28 @@ class AiTdl {
         '5. 能看出重复规律的：daily / weekly / monthly / yearly，看不出写 none\n'
         '6. 原文里的编号、符号、空行都忽略，只提取真正要做的事\n'
         '7. 如果原文是一整段没有条理的文字，也要尽量拆出可执行的条目\n'
-        '8. 最多返回 100 条\n'
+        '8. 原文里有提醒相关的说法（「提前十分钟提醒」「八点叫我」「提醒我一下」），'
+        '算出具体提醒时间填 remind（ISO 8601，算法同上：今天/明天/周几照周表）；'
+        '没提就写 null\n'
+        '9. 原文里除了动作之外的补充信息（带什么东西、找谁、金额、地址、注意事项），'
+        '整理成一句话放 note；没有就写空字符串\n'
+        '10. 最多返回 100 条\n'
         '\n'
         '示例（假设今天 2026-11-04 星期三）：\n'
-        '- 「每天早上背单词」→ {"title":"背单词","due":null,"priority":"blue","repeat":"daily"}\n'
-        '- 「周五前交报告」→ {"title":"交报告","due":"2026-11-06T23:59:59",'
-        '"priority":"red","repeat":"none"}\n'
-        '- 「把房租交了」→ {"title":"交房租","due":null,"priority":"gray","repeat":"none"}\n'
-        '- 「明天下午三点开会」→ {"title":"开会","due":"2026-11-05T15:00:00",'
-        '"priority":"gray","repeat":"none"}\n'
+        '- 「每天早上背单词」→ {"title":"背单词","due":null,"priority":"blue",'
+        '"repeat":"daily","remind":null,"note":""}\n'
+        '- 「周五前交报告，带上上季度数据」→ {"title":"交报告",'
+        '"due":"2026-11-06T23:59:59","priority":"red","repeat":"none",'
+        '"remind":null,"note":"带上上季度数据"}\n'
+        '- 「把房租交了，3200」→ {"title":"交房租","due":null,"priority":"gray",'
+        '"repeat":"none","remind":null,"note":"3200"}\n'
+        '- 「明天下午三点开会，提前十分钟提醒我」→ {"title":"开会",'
+        '"due":"2026-11-05T15:00:00","priority":"gray","repeat":"none",'
+        '"remind":"2026-11-05T14:50:00","note":""}\n'
         '\n'
         '只输出 JSON 数组，不要任何解释文字、不要 markdown 代码块标记。\n'
-        '格式：[{"title":"...","due":"2026-11-05T15:00:00","priority":"gray","repeat":"none"}]';
+        '格式：[{"title":"...","due":"2026-11-05T15:00:00","priority":"gray",'
+        '"repeat":"none","remind":null,"note":""}]';
   }
 
   /// 拆解一段文字。调用方要先把 key 和剩余次数准备好。
@@ -236,6 +254,7 @@ class AiTdl {
       if (title.isEmpty) continue;
       final String p = (e['priority'] ?? 'gray').toString();
       final String r = (e['repeat'] ?? 'none').toString();
+      final String nt = (e['note'] ?? '').toString().trim();
       out.add(AiTodo(
         title: title.length > 60 ? title.substring(0, 60) : title,
         due: _parseIso((e['due'] ?? '').toString()),
@@ -247,6 +266,8 @@ class AiTdl {
                     .contains(r)
                 ? r
                 : 'none',
+        remind: _parseIso((e['remind'] ?? '').toString()),
+        note: nt.length > 200 ? nt.substring(0, 200) : nt,
       ));
     }
     return out;

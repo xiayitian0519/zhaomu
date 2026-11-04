@@ -5,6 +5,10 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.24.4', '2026-11-04', <String>[
+    '导入 TDL 现在能认提醒时间和备注了，预览页都能手改',
+    '修了一个时刻丢失的 bug：AI 算出「下午三点」，导进去只显示日期、不显示三点',
+  ]),
   AppUpdate('2.24.3', '2026-11-04', <String>[
     '修好了「导入 TDL 一点就报网络不通」—— 根因是 release 包没申请联网权限',
   ]),
