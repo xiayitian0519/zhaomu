@@ -4,15 +4,11 @@ import 'package:http/http.dart' as http;
 
 import 'models.dart';
 
-/// 内置的智谱 API Key。
+/// 内置的智谱 API Key（2026-11-04 用户提供，实测 glm-4-flash 可用）。
 ///
-/// **留空的话「导入 TDL」会提示用户去设置里填自己的 Key。**
-/// 要内置就把 key 字符串粘到这里（形如 `xxxxx.yyyyy`），
-/// 然后在设置页把「用内置额度」开关打开。
-///
-/// ⚠️ 提醒：APK 能反编译，写在这里的 key 等于公开。
-/// 所以内置 key 请去智谱后台设一个**每日额度上限**，别用主账号的无限额度 key。
-const String kBuiltinKey = '';
+/// ⚠️ APK 能反编译，这把 key 等于公开。用户已知悉并接受。
+/// 如果被人刷爆，去 bigmodel.cn 控制台删掉重建，再改这里的字符串重新打包。
+const String kBuiltinKey = '7ffa4a4a18be4ae196c2f043966f5723.nAEnlVxpjKwcrTKc';
 
 /// 每天最多用几次（防 key 泄露被刷爆）。
 const int kDailyLimit = 50;
@@ -75,23 +71,66 @@ class AiTdl {
   static const String _endpoint =
       'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 
-  static const String _systemPrompt = '''
-你是一个待办拆解助手。用户会给你一段文字（TDL 清单、会议记录、聊天记录、备忘录都可能），
-请把它拆成一条条独立的待办事项。
+  /// 每次调用现拼 prompt。
+  ///
+  /// **必须带上「今天几号 + 本周每天是几号」**，否则模型不知道今天，
+  /// 会把「明天」算成训练数据里的日期（2026-11-04 实测：不注入今天时
+  /// glm-4-flash 把「明天下午三点」算成了 2023-04-14T15:00:00）。
+  /// 注入周表之后「明天下午三点」能正确算成次日 15:00。
+  static String _systemPrompt() {
+    final DateTime now = DateTime.now();
+    const List<String> week = <String>[
+      '星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日',
+    ];
+    String two(int v) => v.toString().padLeft(2, '0');
+    final String today =
+        '${now.year}-${two(now.month)}-${two(now.day)} ${week[now.weekday - 1]}';
 
-规则：
-1. 每条只做一件事，不要把两件事合成一条
-2. 标题精简到 20 字以内，去掉"记得""要""帮我""一下"这类废话，保留关键动作和对象
-3. 能看出日期时间的，转成 ISO 8601（例：2026-11-05T15:00:00）；只看得出哪天就写 2026-11-05T00:00:00；看不出来写 null
-4. 优先级按四象限判断：red=重要且紧急，yellow=重要不紧急，blue=不重要但紧急，gray=都不算或判断不出
-5. 能看出重复规律的：daily / weekly / monthly / yearly，看不出写 none
-6. 原文里的编号、符号、空行都忽略，只提取真正要做的事
-7. 如果原文是一整段没有条理的文字，也要尽量拆出可执行的条目
-8. 最多返回 100 条
+    final DateTime monday = now.subtract(Duration(days: now.weekday - 1));
+    final List<String> lines = <String>[];
+    for (int i = 0; i < 7; i++) {
+      final DateTime d = monday.add(Duration(days: i));
+      final bool isToday =
+          d.year == now.year && d.month == now.month && d.day == now.day;
+      lines.add('  ${week[i]} ${two(d.month)}-${two(d.day)}'
+          '${isToday ? '（今天）' : ''}');
+    }
 
-只输出 JSON 数组，不要任何解释文字、不要 markdown 代码块标记。
-格式：[{"title":"...","due":"2026-11-05T15:00:00","priority":"gray","repeat":"none"}]
-''';
+    return '今天是 $today。\n'
+        '本周的日期对照（算「周五」「下周一」这种就照这几行，别自己推）：\n'
+        '${lines.join('\n')}\n'
+        '\n'
+        '你是一个待办拆解助手。用户会给你一段文字（TDL 清单、会议记录、聊天记录、备忘录都可能），\n'
+        '请把它拆成一条条独立的待办事项。\n'
+        '\n'
+        '规则：\n'
+        '1. 每条只做一件事，不要把两件事合成一条\n'
+        '2. 标题精简到 20 字以内，去掉「记得」「要」「帮我」「一下」「还有」这类废话，'
+        '也去掉时间前缀，只留动作和对象\n'
+        '3. 只有原文明确说了日期或时间的才填 due，否则一律写 null，绝对不许猜：\n'
+        '   - 说了几点就带几点（「明天下午三点」→ 明天那天的 T15:00:00）\n'
+        '   - 只说了哪天就写那天的 T00:00:00\n'
+        '   - 「周五前」「月底前」这种最后期限，写那天的 T23:59:59\n'
+        '   - 只有重复规律（每天/每周）没具体日期的，due 写 null\n'
+        '   - 原文没提时间的，due 必须写 null，不许拿今天凑数\n'
+        '4. 优先级按四象限判断：red=重要且紧急，yellow=重要不紧急，'
+        'blue=不重要但紧急，gray=都不算或判断不出\n'
+        '5. 能看出重复规律的：daily / weekly / monthly / yearly，看不出写 none\n'
+        '6. 原文里的编号、符号、空行都忽略，只提取真正要做的事\n'
+        '7. 如果原文是一整段没有条理的文字，也要尽量拆出可执行的条目\n'
+        '8. 最多返回 100 条\n'
+        '\n'
+        '示例（假设今天 2026-11-04 星期三）：\n'
+        '- 「每天早上背单词」→ {"title":"背单词","due":null,"priority":"blue","repeat":"daily"}\n'
+        '- 「周五前交报告」→ {"title":"交报告","due":"2026-11-06T23:59:59",'
+        '"priority":"red","repeat":"none"}\n'
+        '- 「把房租交了」→ {"title":"交房租","due":null,"priority":"gray","repeat":"none"}\n'
+        '- 「明天下午三点开会」→ {"title":"开会","due":"2026-11-05T15:00:00",'
+        '"priority":"gray","repeat":"none"}\n'
+        '\n'
+        '只输出 JSON 数组，不要任何解释文字、不要 markdown 代码块标记。\n'
+        '格式：[{"title":"...","due":"2026-11-05T15:00:00","priority":"gray","repeat":"none"}]';
+  }
 
   /// 拆解一段文字。调用方要先把 key 和剩余次数准备好。
   static Future<AiParseResult> parse({
@@ -104,7 +143,7 @@ class AiTdl {
       throw AiException('AI 还没配好：代码里的内置 Key 是空的。需要把智谱的 key 写进 lib/ai_tdl.dart 的 kBuiltinKey 再重新打包。');
     }
     if (usedToday >= kDailyLimit) {
-      throw AiException('今天的 $kDailyLimit 次已经用完了，明天再来。想接着用就在设置里填自己的 Key。');
+      throw AiException('今天的 $kDailyLimit 次已经用完了，明天再来。');
     }
     final String body = text.trim();
     if (body.isEmpty) {
@@ -126,22 +165,23 @@ class AiTdl {
             body: jsonEncode(<String, dynamic>{
               'model': 'glm-4-flash',
               'temperature': 0.2,
+              'max_tokens': 2000,
               'messages': <Map<String, String>>[
-                <String, String>{'role': 'system', 'content': _systemPrompt},
+                <String, String>{'role': 'system', 'content': _systemPrompt()},
                 <String, String>{'role': 'user', 'content': body},
               ],
             }),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 90));
     } catch (e) {
       throw AiException('网络不通，检查一下是不是断网了。（$e）');
     }
 
     if (resp.statusCode == 401 || resp.statusCode == 403) {
-      throw AiException('这个 Key 不对或者过期了，去设置里换一个。');
+      throw AiException('内置 Key 不对或者过期了，要重新换一把。');
     }
     if (resp.statusCode == 429) {
-      throw AiException('调太快了，等一分钟再试。');
+      throw AiException('调太快了（模型限流），等一分钟再试。');
     }
     if (resp.statusCode != 200) {
       throw AiException('接口返回 ${resp.statusCode}，稍后再试。');
@@ -172,14 +212,12 @@ class AiTdl {
   /// 模型有时候会包 ```json 或者加前言，这里都兜住。
   static List<AiTodo> _parseContent(String raw) {
     String s = raw.trim();
-    // 去掉 markdown 代码块
     if (s.startsWith('```')) {
       final int firstNl = s.indexOf('\n');
       if (firstNl > 0) s = s.substring(firstNl + 1);
       if (s.endsWith('```')) s = s.substring(0, s.length - 3);
       s = s.trim();
     }
-    // 只截第一个 [ 到最后一个 ]
     final int lb = s.indexOf('[');
     final int rb = s.lastIndexOf(']');
     if (lb >= 0 && rb > lb) s = s.substring(lb, rb + 1);
@@ -218,7 +256,6 @@ class AiTdl {
     if (s.isEmpty || s == 'null') return null;
     final DateTime? d = DateTime.tryParse(s);
     if (d == null) return null;
-    // 模型偶尔会给 1970 这种明显错的
     if (d.year < 2000 || d.year > 2100) return null;
     return d;
   }
