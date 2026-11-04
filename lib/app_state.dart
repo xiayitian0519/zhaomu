@@ -119,7 +119,11 @@ class AppState extends ChangeNotifier {
   /// ⚠️ 只影响新装 / 从没改过这项的存档：老存档里已经存着 0，
   /// 读回来还是 0（见 [_read]）。0 是合法值，分不清"没设过"和"特意要到点"，
   /// 所以不做自动迁移 —— 要改在「设置 → 提前多久提醒」里选。
-  int defaultAheadMinutes = 60;
+  /// 默认提前多少分钟提醒。
+  ///
+  /// 2026-11-04 用户要求：删掉详情页的「跟随设置」按钮，默认改成提前 5 分钟。
+  /// 老存档里如果存着自己改过的值（比如 60），读存档时会覆盖这个默认值，不受影响。
+  int defaultAheadMinutes = 5;
 
   /// 提醒形态：RemindStyle.banner / RemindStyle.fullScreen
   String remindStyle = 'banner';

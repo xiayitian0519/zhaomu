@@ -320,12 +320,6 @@ class _DetailPageState extends State<DetailPage> {
                               _ahead = m;
                             }),
                       ),
-                    _pill('跟随设置',
-                        on: !_remindOff && _ahead < 0,
-                        onTap: () => sheetSet(() {
-                              _remindOff = false;
-                              _ahead = -1;
-                            })),
                     _pill('自定义',
                         on: !_remindOff && _ahead > 0 && !quick.contains(_ahead),
                         onTap: () {

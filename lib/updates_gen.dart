@@ -5,6 +5,10 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.26.0', '2026-11-04', <String>[
+    '导入 TDL 更聪明：一段话不标序号不换行也能拆开；没写提醒的自动按截止时间准时提醒',
+    '删掉详情页的「跟随设置」，默认提醒提前量改成 5 分钟',
+  ]),
   AppUpdate('2.25.2', '2026-11-04', <String>[
     '电脑端顶上那条系统标题栏去掉了，窗口按钮只剩标题栏里那一组 − ×',
   ]),

@@ -114,7 +114,7 @@ class AiTdl {
         '规则：\n'
         '1. 每条只做一件事，不要把两件事合成一条\n'
         '2. 标题精简到 20 字以内，去掉「记得」「要」「帮我」「一下」「还有」这类废话，'
-        '也去掉时间前缀，只留动作和对象\n'
+        '也去掉时间前缀和「提醒我」「叫我」这类词，只留动作和对象\n'
         '3. 只有原文明确说了日期或时间的才填 due，否则一律写 null，绝对不许猜：\n'
         '   - 说了几点就带几点（「明天下午三点」→ 明天那天的 T15:00:00）\n'
         '   - 只说了哪天就写那天的 T00:00:00\n'
@@ -125,15 +125,25 @@ class AiTdl {
         'blue=不重要但紧急，gray=都不算或判断不出\n'
         '5. 能看出重复规律的：daily / weekly / monthly / yearly，看不出写 none\n'
         '6. 原文里的编号、符号、空行都忽略，只提取真正要做的事\n'
-        '7. 如果原文是一整段没有条理的文字，也要尽量拆出可执行的条目\n'
-        '8. 原文里有提醒相关的说法（「提前十分钟提醒」「八点叫我」「提醒我一下」），'
-        '算出具体提醒时间填 remind（ISO 8601，算法同上：今天/明天/周几照周表）；'
-        '没提就写 null\n'
+        '7. 【重要】原文常常不标序号、不换行，几件事全挤在一句话或一段话里，'
+        '例如「今晚九点开会明早交报告后天体检」这种。你必须按语义把它拆成独立条目，'
+        '不要因为原文没有 1. 2. 3. 就返回一条\n'
+        '8. 提醒时间 remind 的填法（**注意：提前多少分钟只影响 remind，绝不影响 due**）：\n'
+        '   - 原文写了「提前十分钟提醒」→ **due 还是原来那个时间**，remind = due 往前推十分钟。'
+        '例如「今晚九点提前五分钟提醒」→ due 是当天 T21:00:00，remind 是当天 T20:55:00\n'
+        '   - 原文写了「八点叫我」「提醒我一下」→ 按原意算\n'
+        '   - **原文没提提醒，但待办有具体时刻（due 带时分，比如「今晚九点开会」）'
+        '→ remind 填成和 due 一样（准时提醒）**\n'
+        '   - due 只有日期没有时刻（比如「周五前交报告」）→ remind 写 null\n'
+        '   - 完全没有时间 → remind 写 null\n'
         '9. 原文里除了动作之外的补充信息（带什么东西、找谁、金额、地址、注意事项），'
         '整理成一句话放 note；没有就写空字符串\n'
         '10. 最多返回 100 条\n'
         '\n'
         '示例（假设今天 2026-11-04 星期三）：\n'
+        '- 「今晚九点提前五分钟提醒我参加仓库管理系统项目会议」→ {"title":"参加仓库管理系统项目会议",'
+        '"due":"2026-11-04T21:00:00","priority":"yellow","repeat":"none",'
+        '"remind":"2026-11-04T20:55:00","note":""}\n'
         '- 「每天早上背单词」→ {"title":"背单词","due":null,"priority":"blue",'
         '"repeat":"daily","remind":null,"note":""}\n'
         '- 「周五前交报告，带上上季度数据」→ {"title":"交报告",'
@@ -255,9 +265,25 @@ class AiTdl {
       final String p = (e['priority'] ?? 'gray').toString();
       final String r = (e['repeat'] ?? 'none').toString();
       final String nt = (e['note'] ?? '').toString().trim();
+      final DateTime? dueAt = _parseIso((e['due'] ?? '').toString());
+      DateTime? remindAt = _parseIso((e['remind'] ?? '').toString());
+      // 2026-11-04：只有日期（00:00）的截止时间不该有提醒。
+      // AI 在多条连在一起时会把上一条的「提前五分钟」串到这一条，给个 00:00 的提醒，
+      // 实际就是凌晨响，纯噪音。这里强制清掉。
+      if (dueAt != null && dueAt.hour == 0 && dueAt.minute == 0) {
+        remindAt = null;
+      }
+
+      // 兜底：用户 2026-11-04 要求「没写什么时候提醒就准时提醒」。
+      // AI 偶尔会漏填，这里补上：有精确时刻的截止时间、又没提醒 -> 就在截止那一刻提醒。
+      if (remindAt == null &&
+          dueAt != null &&
+          (dueAt.hour != 0 || dueAt.minute != 0)) {
+        remindAt = dueAt;
+      }
       out.add(AiTodo(
         title: title.length > 60 ? title.substring(0, 60) : title,
-        due: _parseIso((e['due'] ?? '').toString()),
+        due: dueAt,
         priority: const <String>['red', 'yellow', 'blue', 'gray'].contains(p)
             ? p
             : 'gray',
@@ -266,7 +292,7 @@ class AiTdl {
                     .contains(r)
                 ? r
                 : 'none',
-        remind: _parseIso((e['remind'] ?? '').toString()),
+        remind: remindAt,
         note: nt.length > 200 ? nt.substring(0, 200) : nt,
       ));
     }
