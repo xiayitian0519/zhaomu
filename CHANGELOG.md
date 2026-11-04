@@ -9,6 +9,42 @@
 
 ---
 
+## 2.25.2+55 — 2026-11-04
+
+### 更新摘要
+
+- 电脑端顶上那条系统标题栏去掉了，窗口按钮只剩标题栏里那一组 − ×
+
+### 问题
+
+2.25.1 只在 AppBar 的 ⋮ 和 − 之间加了间距，但**窗口自己还留了一条系统标题栏**
+（`TitleBarStyle.normal`，自带 ─ ▢ ✕）。结果顶上有两套窗口按钮，
+AppBar 那组还压在系统标题栏下面，看着更乱。
+
+### 修法
+
+1. `lib/windows_shell.dart` 的 `WindowOptions`：`TitleBarStyle.normal` → **`TitleBarStyle.hidden`**
+2. `lib/pages/home_page.dart` 的 AppBar 标题（「朝暮 + 日期」那块）外面包一层
+   **`DragToMoveArea`**，补上「拖标题移动窗口」的能力（隐藏标题栏后不加这个窗口就拖不动了）
+3. 补 `import 'package:window_manager/window_manager.dart';`
+
+### 改完的样子
+
+```
+朝暮  11月4日 星期三      ↕优先级  日历  ⋮          −  ×
+```
+
+最顶上一整行就是 AppBar，没有第二条。− × 在最右，跟功能按钮隔开。
+
+### 文件变动
+
+1. `lib/windows_shell.dart` 6,385 → **6,850** 字节
+2. `lib/pages/home_page.dart` 23,822 → **约 24,100** 字节
+
+### 验证
+
+见本轮任务回报。
+
 ## 2.25.1+54 — 2026-11-04
 
 ### 更新摘要

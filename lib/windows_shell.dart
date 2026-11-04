@@ -44,7 +44,12 @@ class WindowsShell with WindowListener, TrayListener {
       title: '朝暮',
       backgroundColor: Color(0xFFFFFFFF),
       skipTaskbar: false,
-      titleBarStyle: TitleBarStyle.normal,
+      // 2026-11-04 用户要求：「− × 放到最右上角，不要跟日历那栏挤一块」。
+      // 原来 normal 会留一条系统标题栏（自己带 ─ ▢ ✕），跟 AppBar 里的 − ×
+      // 变成两套按钮，视觉上乱且占一整行。
+      // 改成 hidden：系统标题栏整条不要，窗口按钮只有 AppBar 里那一组。
+      // 代价是窗口不能靠标题栏拖了 —— 由 home_page 的 DragToMoveArea 补上。
+      titleBarStyle: TitleBarStyle.hidden,
     );
 
     // ⚠️ 这个 Future 要等第一帧渲染完才完成 —— **绝对不能 await**。

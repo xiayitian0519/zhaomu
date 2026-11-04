@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.25.2', '2026-11-04', <String>[
+    '电脑端顶上那条系统标题栏去掉了，窗口按钮只剩标题栏里那一组 − ×',
+  ]),
   AppUpdate('2.25.1', '2026-11-04', <String>[
     '电脑端标题栏把「− 最小化」「× 收托盘」跟「排序/日历/⋮」那组分开，中间留空',
   ]),

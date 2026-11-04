@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../app_state.dart';
 import '../guide.dart';
@@ -228,7 +229,9 @@ class _HomePageState extends State<HomePage> {
   PreferredSizeWidget _appBar(AppState st) {
     return AppBar(
       titleSpacing: 16,
-      title: Row(
+      // 系统标题栏已隐藏（TitleBarStyle.hidden），窗口靠拖这块标题移动
+      title: DragToMoveArea(
+        child: Row(
         children: <Widget>[
           const Text(
             '朝暮',
@@ -242,7 +245,8 @@ class _HomePageState extends State<HomePage> {
               style: const TextStyle(fontSize: 12, color: Color(0xFF8A8A8A), fontWeight: FontWeight.w400),
             ),
           ),
-        ],
+          ],
+        ),
       ),
       actions: <Widget>[
         // 排序：2026-11-04 用户要求钉在右上角，不跟列表滚动、也不受逾期组折叠影响。
