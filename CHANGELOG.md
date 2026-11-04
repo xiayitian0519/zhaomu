@@ -7,6 +7,36 @@
 3. **补丁**：只修 bug
 4. **构建号 `+N`**：每次打包递增，与次版本对齐（2.5.x → +5，2.6.x → +6）
 
+## 2.27.2+61 — 2026-11-04
+
+### 更新摘要
+
+- 检查更新改走国内源（Gitee），下载从 20 KB/s 提到 1.6 MB/s，24.6 MB 的包 15 秒下完
+
+### 问题
+
+GitHub 的 Release 直连在国内实测只有 15–43 KB/s，一个 24.6 MB 的安装包要
+10–27 分钟，用户忍着下完 20 分钟。同期测了 4 个公共 GitHub 加速镜像，
+最快的 gh-proxy.com 是 27 KB/s，比直连还慢，换镜像这条路不通。
+
+### 改动
+
+1. `lib/updater.dart` 新增 `_checkChina()`：先读
+   `gitee.com/xiayitian0519/chaomu/raw/master/latest.json`，拿到版本号、
+   说明、安装包/补丁直链；失败（没网 / 没同步 / 格式不对）返回 null，
+   自动退回原来的 GitHub API，超时从 20 秒收到 10 秒。
+2. 仓库根目录放 `latest.json` 做版本索引，发版时由
+   `tool/upload_gitee.py` 一起更新。
+3. 新增 `tool/upload_gitee.py`：建公开仓库 → 建 Release → 传 APK / 补丁 /
+   电脑包 → 匿名测速，一条命令发完。
+
+### 实测
+
+- Gitee 附件匿名下载 1.62 MB/s，24.6 MB 约 15 秒（GitHub 同条件是 20 KB/s）
+- Gitee 附件不支持 Range（返回 200 全量），所以没做分片并发，单连接够用
+
+---
+
 ---
 
 ## 2.27.1+60 — 2026-11-04

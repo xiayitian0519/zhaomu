@@ -79,6 +79,14 @@ class Updater {
   static const String _owner = 'xiayitian0519';
   static const String _repo = 'zhaomu';
 
+  /// 国内源（Gitee）。2026-11-04 加的：GitHub 直连实测只有 20 KB/s，
+  /// 同一个包从 Gitee 能跑到 1.6 MB/s，差 80 倍。
+  /// 版本信息放仓库根目录的 latest.json，走 raw 直链，国内 1 秒内拿到。
+  static const String _cnReleases =
+      'https://gitee.com/xiayitian0519/chaomu/releases';
+  static const String _cnIndex =
+      'https://gitee.com/xiayitian0519/chaomu/raw/master/latest.json';
+
   /// FileProvider 的 authority，要和 AndroidManifest 里对上
   static const String _authority = 'com.xiayitian.chaomu.fileprovider';
 
@@ -100,10 +108,81 @@ class Updater {
     return d;
   }
 
+  /// 先问国内源（Gitee 上的 latest.json）。
+  ///
+  /// 拿不到 —— 没网、文件还没同步、格式对不上 —— 一律返回 null，
+  /// 交给 GitHub 那条老路兜底，不要因为国内源挂了就把更新整个弄死。
+  static Future<UpdateInfo?> _checkChina(String? current) async {
+    final http.Response resp;
+    try {
+      // 加时间戳，绕过 raw 的 CDN 缓存，否则发新版后半天读到旧清单
+      resp = await http
+          .get(Uri.parse('$_cnIndex?t=${DateTime.now().millisecondsSinceEpoch}'))
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      return null;
+    }
+    if (resp.statusCode != 200) return null;
+
+    try {
+      final Map<String, dynamic> o =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
+      final String latest = (o['latest'] ?? '').toString();
+      if (latest.isEmpty) return null;
+
+      String notes = (o['notes'] ?? '').toString();
+      if (notes.length > 300) notes = '${notes.substring(0, 300)}…';
+
+      String? patchUrl;
+      String? patchFrom;
+      int? patchSize;
+      final Object? ps = o['patches'];
+      if (ps is List && current != null && current.isNotEmpty) {
+        for (final dynamic e in ps) {
+          if (e is! Map<String, dynamic>) continue;
+          if ((e['from'] ?? '').toString() != current) continue;
+          final String u = (e['url'] ?? '').toString();
+          if (u.isEmpty) continue;
+          patchUrl = u;
+          patchFrom = current;
+          final Object? sz = e['size'];
+          patchSize = sz is num ? sz.toInt() : null;
+          break;
+        }
+      }
+
+      String? apk;
+      String? zip;
+      if (Platform.isAndroid) {
+        apk = (o['apk'] ?? '').toString();
+        if (apk.isEmpty) apk = null;
+      } else {
+        zip = (o['win'] ?? '').toString();
+        if (zip.isEmpty) zip = null;
+      }
+
+      return UpdateInfo(
+        latest: latest,
+        notes: notes,
+        pageUrl: (o['page'] ?? _cnReleases).toString(),
+        apkUrl: apk,
+        zipUrl: zip,
+        patchUrl: patchUrl,
+        patchFrom: patchFrom,
+        patchSize: patchSize,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 查远端最新 release。
   ///
   /// [current] 传当前版本号的话，会顺便找「从当前版本到最新版本」的补丁包。
   static Future<UpdateInfo?> check({String? current}) async {
+    final UpdateInfo? cn = await _checkChina(current);
+    if (cn != null) return cn;
+
     final Uri api = Uri.parse(
       'https://api.github.com/repos/$_owner/$_repo/releases/latest',
     );
@@ -112,7 +191,7 @@ class Updater {
       resp = await http.get(
         api,
         headers: <String, String>{'Accept': 'application/vnd.github+json'},
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 10));
     } catch (_) {
       return null;
     }

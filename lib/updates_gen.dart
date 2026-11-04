@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.2', '2026-11-04', <String>[
+    '检查更新改走国内源（Gitee），下载从 20 KB/s 提到 1.6 MB/s，24.6 MB 的包 15 秒下完',
+  ]),
   AppUpdate('2.27.1', '2026-11-04', <String>[
     '修提醒选项一个都不亮的问题：默认改成「提前 5 分钟」后没同步初始值',
   ]),
