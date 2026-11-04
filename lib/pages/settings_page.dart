@@ -641,7 +641,7 @@ class SettingsPage extends StatelessWidget {
     );
 
     final String current = await Updater.currentVersion();
-    final UpdateInfo? info = await Updater.check();
+    final UpdateInfo? info = await Updater.check(current: current);
     if (!ctx.mounted) return;
 
     if (info == null) {
@@ -749,12 +749,12 @@ class SettingsPage extends StatelessWidget {
       ),
     );
 
-    File? file;
+    UpdateFile? got;
     String? err;
     try {
-      file = await Updater.download(
-        url: url!,
-        fileName: fileName,
+      got = await Updater.fetch(
+        info: info,
+        currentVersion: current,
         onProgress: (int r, int t) {
           if (t > 0) prog.value = r / t;
         },
@@ -766,6 +766,9 @@ class SettingsPage extends StatelessWidget {
     if (!ctx.mounted) return;
     Navigator.of(ctx).pop(); // 关进度框
     prog.dispose();
+
+    final File? file = got?.file;
+    final bool byPatch = got?.wasPatch ?? false;
 
     if (file == null) {
       final bool ok = await Updater.openPage(info.pageUrl);
@@ -783,14 +786,26 @@ class SettingsPage extends StatelessWidget {
 
     final bool ok = await Updater.install(file);
     if (!ctx.mounted) return;
+    final String how = byPatch
+        ? '增量包 ${_mb(got!.bytes)}（省了大部分流量）'
+        : '完整包 ${_mb(got?.bytes ?? 0)}';
     messenger.showSnackBar(
       SnackBar(
         content: Text(ok
-            ? (Platform.isAndroid ? '已下好，按系统提示安装' : '已下好，在打开的文件夹里')
+            ? (Platform.isAndroid
+                ? '已下好，$how。按系统提示安装'
+                : '已下好，$how。在打开的文件夹里')
             : '已下到：${file.path}'),
         duration: const Duration(seconds: 6),
       ),
     );
+  }
+
+  /// 字节数转成好读的「x.x MB」
+  static String _mb(int bytes) {
+    if (bytes <= 0) return '未知大小';
+    if (bytes >= 1048576) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
+    return '${(bytes / 1024).toStringAsFixed(0)} KB';
   }
 
   Widget build(BuildContext context) {

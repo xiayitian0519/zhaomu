@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.0', '2026-11-04', <String>[
+    '检查更新支持增量下载：以后升级只下 1 MB 左右的补丁，不用重下 24.6 MB',
+  ]),
   AppUpdate('2.26.2', '2026-11-04', <String>[
     '导入 TDL 预览页：改时间更顺手，重要性改成滚轮选',
   ]),

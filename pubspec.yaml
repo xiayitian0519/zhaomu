@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.26.2+58
+version: 2.27.0+59
 
 environment:
   sdk: ^3.13.0
@@ -76,6 +76,7 @@ dependencies:
   package_info_plus: ^10.2.2
   # 调 AI 接口 + 查 GitHub 最新版本（纯 Dart，两端都支持）
   http: ^1.2.2
+  archive: ^4.6.0
 
   # 开机自启没有用 launch_at_startup：它锁 win32 ^5，和 share_plus 的 ^6 打架。
   # 改成自己写一个静默 vbs 进启动目录（见 lib/windows_shell.dart）。
