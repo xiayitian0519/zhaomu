@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.26.2', '2026-11-04', <String>[
+    '导入 TDL 预览页：改时间更顺手，重要性改成滚轮选',
+  ]),
   AppUpdate('2.26.1', '2026-11-04', <String>[
     '桌面小组件改成能滑动、能点：上下滑看全部今日待办，点一条标完成，再点撤回',
   ]),

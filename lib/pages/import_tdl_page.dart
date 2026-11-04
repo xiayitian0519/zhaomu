@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../ai_tdl.dart';
@@ -307,7 +308,7 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
                   () => _pickRemind(i, a),
                 ),
                 _tag(AiTdl.priorityLabel(a.priority), const Color(0xFF8A6D1E),
-                    () => setState(() => a.priority = _nextPriority(a.priority))),
+                    () => _pickPriority(a)),
                 if (a.repeat != 'none')
                   _tag(_repeatText(a.repeat), const Color(0xFF2C9A56), () {
                     setState(() => a.repeat = _nextRepeat(a.repeat));
@@ -448,32 +449,162 @@ class _ImportTdlPageState extends State<ImportTdlPage> {
       }[r] ??
       '';
 
-  static String _nextPriority(String p) {
-    const List<String> order = <String>['gray', 'yellow', 'blue', 'red'];
-    final int i = order.indexOf(p);
-    return order[(i + 1) % order.length];
-  }
-
   static String _nextRepeat(String r) {
     const List<String> order = <String>['none', '每天', '每周', '每月', '每年'];
     final int i = order.indexOf(r);
     return order[(i + 1) % order.length];
   }
 
+  /// 点日期 chip。
+  ///
+  /// 2026-11-04 用户要求：**如果这条待办就是今天，直接弹时间轮，跳过选天数**。
+  /// 时间轮的取消按钮改成「改日期」，点了才去选日期，这样今天的待办也能换天。
   Future<void> _pickDate(int i, AiTodo a) async {
     final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime? cur = a.due;
+    final bool isToday = cur != null &&
+        cur.year == today.year &&
+        cur.month == today.month &&
+        cur.day == today.day;
+
+    if (isToday) {
+      // ---- 今天：只问几点 ----
+      final TimeOfDay? t = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(cur),
+        helpText: '选时间',
+        cancelText: '改日期',
+        confirmText: '确定',
+      );
+      if (!mounted) return;
+      if (t != null) {
+        setState(() {
+          a.due = DateTime(cur.year, cur.month, cur.day, t.hour, t.minute);
+        });
+        return;
+      }
+      // 点了「改日期」→ 往下走选日期流程
+    }
+
+    // ---- 不是今天 / 没日期 / 用户点了改日期：先选哪天 ----
     final DateTime? d = await showDatePicker(
       context: context,
       initialDate: a.due ?? now,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
       helpText: '选截止日期（取消 = 不限）',
-      cancelText: '取消',
+      cancelText: '不限',
+      confirmText: '下一步',
+    );
+    if (!mounted) return;
+    if (d == null) {
+      setState(() => a.due = null);
+      return;
+    }
+
+    // 再问几点（可跳过，取消 = 只要日期不要时刻）
+    final TimeOfDay? t2 = await showTimePicker(
+      context: context,
+      initialTime: a.due != null
+          ? TimeOfDay.fromDateTime(a.due!)
+          : const TimeOfDay(hour: 9, minute: 0),
+      helpText: '选时间（取消 = 只定日期）',
+      cancelText: '只要日期',
       confirmText: '确定',
     );
     if (!mounted) return;
     setState(() {
-      a.due = d;
+      a.due = t2 == null
+          ? DateTime(d.year, d.month, d.day)
+          : DateTime(d.year, d.month, d.day, t2.hour, t2.minute);
     });
   }
+
+  /// 点优先级 chip：弹滚轮选四象限（2026-11-04 用户要求）。
+  Future<void> _pickPriority(AiTodo a) async {
+    const List<String> order = <String>['red', 'yellow', 'blue', 'gray'];
+    int idx = order.indexOf(a.priority);
+    if (idx < 0) idx = 3;
+
+    final String? picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext c) {
+        int cur = idx;
+        return SizedBox(
+          height: 288,
+          child: Column(
+            children: <Widget>[
+              // 顶部按钮条
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                child: Row(
+                  children: <Widget>[
+                    TextButton(
+                      onPressed: () => Navigator.of(c).pop(),
+                      child: const Text('取消',
+                          style: TextStyle(fontSize: 14, color: Color(0xFF8A91A0))),
+                    ),
+                    const Spacer(),
+                    const Text('重要性',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => Navigator.of(c).pop(order[cur]),
+                      child: const Text('确定',
+                          style: TextStyle(fontSize: 14, color: Color(0xFF185FA5))),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: CupertinoPicker(
+                  itemExtent: 44,
+                  scrollController: FixedExtentScrollController(initialItem: idx),
+                  onSelectedItemChanged: (int i) => cur = i,
+                  children: <Widget>[
+                    for (final String p in order)
+                      Center(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: _priorityColor(p),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              AiTdl.priorityLabel(p),
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked != null) setState(() => a.priority = picked);
+  }
+
+  static Color _priorityColor(String p) => const <String, Color>{
+        'red': Color(0xFFD63A3A),
+        'yellow': Color(0xFFC8871A),
+        'blue': Color(0xFF2B6CD4),
+        'gray': Color(0xFF5A6270),
+      }[p] ??
+      const Color(0xFF5A6270);
 }
