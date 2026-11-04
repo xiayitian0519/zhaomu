@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  小组件里的一条待办（2026-11-04 新增）。
+  整行可点：切换完成 / 撤回。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp">
+
+    <!-- 左边颜色条（优先级） -->
+    <View
+        android:id="@+id/item_bar"
+        android:layout_width="3dp"
+        android:layout_height="16dp"
+        android:layout_marginEnd="7dp"
+        android:background="#5A6270" />
+
+    <!-- 勾选圈：点整行就切 -->
+    <ImageView
+        android:id="@+id/item_check"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginEnd="7dp"
+        android:src="@android:drawable/checkbox_off_background" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/item_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:text=""
+            android:textSize="12.5sp"
+            android:textColor="#1A1D26" />
+
+        <TextView
+            android:id="@+id/item_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text=""
+            android:textSize="10.5sp"
+            android:textColor="#949CAA"
+            android:visibility="gone" />
+    </LinearLayout>
+
+</LinearLayout>

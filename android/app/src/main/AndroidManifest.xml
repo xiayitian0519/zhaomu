@@ -98,6 +98,21 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_chaomu_info" />
         </receiver>
+
+        <!-- 小组件的列表数据源（2026-11-04）：让列表能上下滑动 -->
+        <service
+            android:name=".ChaomuWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
+
+        <!-- 小组件里点一条待办 -> 切换完成 / 撤回（2026-11-04） -->
+        <receiver
+            android:name=".ToggleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.xiayitian.chaomu.WIDGET_TOGGLE" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

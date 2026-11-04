@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.26.1', '2026-11-04', <String>[
+    '桌面小组件改成能滑动、能点：上下滑看全部今日待办，点一条标完成，再点撤回',
+  ]),
   AppUpdate('2.26.0', '2026-11-04', <String>[
     '导入 TDL 更聪明：一段话不标序号不换行也能拆开；没写提醒的自动按截止时间准时提醒',
     '删掉详情页的「跟随设置」，默认提醒提前量改成 5 分钟',

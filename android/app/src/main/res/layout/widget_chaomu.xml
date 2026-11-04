@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  朝暮桌面小组件的布局（2026-11-04 新增）。
-  尺寸按 4x2 设计：宽约 4 格、高约 2 格。2x2 也能塞，只是显示条数少些。
+  朝暮桌面小组件外壳（2026-11-04 改成可滑动）。
+  列表内容由 ChaomuWidgetService 提供，能上下滑看全部今日待办。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="10dp">
+    android:padding="8dp">
 
     <!-- 标题行：点它打开 App -->
     <LinearLayout
@@ -17,7 +17,8 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="6dp">
+        android:paddingTop="2dp"
+        android:paddingBottom="5dp">
 
         <TextView
             android:layout_width="wrap_content"
@@ -49,163 +50,28 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
-        android:background="#E2E6EE"
-        android:layout_marginBottom="5dp" />
+        android:background="#E2E6EE" />
 
-    <!-- 待办 1~5 行 -->
-    <LinearLayout
-        android:id="@+id/widget_row1"
+    <!-- 可上下滑动的待办列表 -->
+    <ListView
+        android:id="@+id/widget_list"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="#00000000"
+        android:dividerHeight="0dp"
+        android:layout_marginTop="2dp" />
 
-        <View
-            android:layout_width="3dp"
-            android:layout_height="13dp"
-            android:layout_marginEnd="6dp"
-            android:layout_gravity="center_vertical"
-            android:background="#D63A3A" />
-
-        <TextView
-            android:id="@+id/widget_t1"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#1A1D26" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/widget_row2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
-
-        <View
-            android:layout_width="3dp"
-            android:layout_height="13dp"
-            android:layout_marginEnd="6dp"
-            android:layout_gravity="center_vertical"
-            android:background="#C8871A" />
-
-        <TextView
-            android:id="@+id/widget_t2"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#1A1D26" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/widget_row3"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
-
-        <View
-            android:layout_width="3dp"
-            android:layout_height="13dp"
-            android:layout_marginEnd="6dp"
-            android:layout_gravity="center_vertical"
-            android:background="#2B6CD4" />
-
-        <TextView
-            android:id="@+id/widget_t3"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#1A1D26" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/widget_row4"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
-
-        <View
-            android:layout_width="3dp"
-            android:layout_height="13dp"
-            android:layout_marginEnd="6dp"
-            android:layout_gravity="center_vertical"
-            android:background="#5A6270" />
-
-        <TextView
-            android:id="@+id/widget_t4"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#1A1D26" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/widget_row5"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingTop="2dp"
-        android:paddingBottom="2dp">
-
-        <View
-            android:layout_width="3dp"
-            android:layout_height="13dp"
-            android:layout_marginEnd="6dp"
-            android:layout_gravity="center_vertical"
-            android:background="#5A6270" />
-
-        <TextView
-            android:id="@+id/widget_t5"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:text=""
-            android:textSize="12sp"
-            android:textColor="#1A1D26" />
-    </LinearLayout>
-
+    <!-- 列表空的时候显示 -->
     <TextView
         android:id="@+id/widget_empty"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:text="今天没有待办"
         android:textSize="12sp"
         android:textColor="#B8BDC8"
-        android:paddingTop="8dp"
-        android:visibility="gone" />
-
-    <TextView
-        android:id="@+id/widget_more"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textSize="11sp"
-        android:textColor="#949CAA"
-        android:paddingTop="3dp"
+        android:gravity="center"
         android:visibility="gone" />
 
 </LinearLayout>
