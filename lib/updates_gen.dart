@@ -5,6 +5,10 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.8', '2026-11-05', <String>[
+    '小组件还是加不上：设置里加了个「自检」，点一下就能看出卡在哪',
+    '一键添加失败时，改成直接拉起系统的选择小部件界面',
+  ]),
   AppUpdate('2.27.7', '2026-11-05', <String>[
     '打开朝暮会自动看一眼有没有新版本，有的话弹窗告诉你',
     '隔了好几个版本才更新时，弹窗里会把中间每一版改了什么一次列全',

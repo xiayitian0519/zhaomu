@@ -1,11 +1,13 @@
 package com.xiayitian.chaomu
 
 import android.app.AppOpsManager
+import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -68,6 +70,14 @@ class MainActivity : FlutterActivity() {
                     "pinWidget" -> {
                         result.success(pinWidget())
                     }
+                    // 一键钉失败时的兜底：直接拉起系统的「选择小部件」界面
+                    "openWidgetPicker" -> {
+                        result.success(openWidgetPicker())
+                    }
+                    // 小组件自检：把系统看到的 provider 状态原样吐给 Dart
+                    "widgetDiag" -> {
+                        result.success(widgetDiag())
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -95,6 +105,106 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             mapOf("supported" to false, "ok" to false)
         }
+    }
+
+    /**
+     * 直接拉起系统的「选择小部件」界面（2026-11-05 加的兜底）。
+     *
+     * requestPinAppWidget 在部分 ROM 上不实现，这时至少能把系统的小部件
+     * 选择器拉起来，比让用户自己找「长按桌面」靠谱。
+     */
+    private fun openWidgetPicker(): Boolean {
+        return try {
+            // 分配 id 必须走 AppWidgetHost，AppWidgetManager 上没有这个方法
+            val id = try {
+                AppWidgetHost(this, 1024).allocateAppWidgetId()
+            } catch (e: Exception) {
+                -1
+            }
+            val i = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
+                if (id > 0) putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, IntArray(0))
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(i)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 小组件自检（2026-11-05 加）。
+     *
+     * 用户反馈「桌面添加小部件里根本找不到朝暮」，光看截图判断不了是
+     * manifest 没进包、被 ROM 过滤、还是系统压根不支持钉桌面。
+     * 这里把 PackageManager 和 AppWidgetManager 看到的原始状态原样吐出来。
+     */
+    private fun widgetDiag(): Map<String, Any> {
+        val out = HashMap<String, Any>()
+        val pkg = packageName
+        val pm = packageManager
+        val mgr = AppWidgetManager.getInstance(this)
+
+        val list = ArrayList<Map<String, Any>>()
+        try {
+            val probe = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE).setPackage(pkg)
+            val found = pm.queryBroadcastReceivers(probe, PackageManager.GET_META_DATA)
+            for (ri in found) {
+                val ai = ri.activityInfo ?: continue
+                val item = HashMap<String, Any>()
+                item["cls"] = ai.name.substringAfterLast('.')
+                item["exported"] = ai.exported
+                item["enabled"] = ai.enabled
+                val label = try {
+                    ai.loadLabel(pm).toString()
+                } catch (e: Exception) {
+                    ""
+                }
+                item["label"] = label
+                val bundle = ai.metaData
+                item["hasProviderXml"] =
+                    bundle != null && bundle.containsKey("android.appwidget.provider")
+                val ids = try {
+                    mgr.getAppWidgetIds(ComponentName(this, ai.name))
+                } catch (e: Exception) {
+                    IntArray(0)
+                }
+                item["placed"] = ids.size
+                // 带上这张表，能看出 ROM 到底把它当不当一个可添加的组件
+                val info = try {
+                    if (android.os.Build.VERSION.SDK_INT >= 26 && bundle != null) {
+                        // 只是想知道有没有解析失败，读不到就返回空
+                        ""
+                    } else {
+                        ""
+                    }
+                } catch (e: Exception) {
+                    ""
+                }
+                item["note"] = info
+                list.add(item)
+            }
+        } catch (e: Exception) {
+            out["queryError"] = e.toString()
+        }
+        out["providers"] = list
+        out["pinSupported"] = try {
+            android.os.Build.VERSION.SDK_INT >= 26 && mgr.isRequestPinAppWidgetSupported
+        } catch (e: Exception) {
+            false
+        }
+        out["sdk"] = android.os.Build.VERSION.SDK_INT
+        out["brand"] = android.os.Build.MANUFACTURER
+        out["model"] = android.os.Build.MODEL
+        out["launcher"] = try {
+            val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            val r = pm.resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY)
+            r?.activityInfo?.packageName ?: "?"
+        } catch (e: Exception) {
+            "?"
+        }
+        return out
     }
 
     /**

@@ -658,6 +658,23 @@ class SettingsPage extends StatelessWidget {
       );
       return;
     }
+
+    // 钉不上：先试着直接把系统的「选择小部件」界面拉起来，三步变一步
+    bool opened = false;
+    try {
+      final Object? r =
+          await const MethodChannel('com.xiayitian.chaomu/ringtone')
+              .invokeMethod<Object?>('openWidgetPicker');
+      opened = r == true;
+    } catch (_) {}
+    if (!ctx.mounted) return;
+    if (opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('打开系统的选择小部件了，在里面挑朝暮')),
+      );
+      return;
+    }
+
     await showDialog<void>(
       context: ctx,
       builder: (BuildContext c) => AlertDialog(
@@ -675,6 +692,70 @@ class SettingsPage extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.of(c).pop(),
             child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 小组件自检：把系统看到的 provider 状态原样列出来。
+  ///
+  /// 2026-11-05 加。用户反馈「桌面里找不到朝暮」，光靠猜定位不了，
+  /// 直接把 PackageManager / AppWidgetManager 的原始结果摊开看。
+  static Future<void> _widgetDiag(BuildContext ctx) async {
+    Object? raw;
+    try {
+      raw = await const MethodChannel('com.xiayitian.chaomu/ringtone')
+          .invokeMethod<Object?>('widgetDiag');
+    } catch (_) {}
+    if (!ctx.mounted) return;
+
+    final Map<dynamic, dynamic> m =
+        raw is Map ? raw : <dynamic, dynamic>{};
+    final List<dynamic> ps =
+        (m['providers'] is List) ? m['providers'] as List<dynamic> : <dynamic>[];
+
+    final StringBuffer sb = StringBuffer();
+    sb.writeln('系统版本 ${m['sdk'] ?? '?'} · ${m['brand'] ?? '?'} ${m['model'] ?? '?'}');
+    sb.writeln('桌面启动器：${m['launcher'] ?? '?'}');
+    sb.writeln('支持一键钉桌面：${m['pinSupported'] == true ? '是' : '否'}');
+    sb.writeln('系统里能查到的朝暮组件：${ps.length} 个');
+    for (final dynamic e in ps) {
+      if (e is! Map) continue;
+      sb.writeln('');
+      sb.writeln('· ${e['cls']}｜${e['label']}');
+      sb.writeln('   对外可见 ${e['exported'] == true ? '是' : '否'}'
+          '｜已启用 ${e['enabled'] == true ? '是' : '否'}');
+      sb.writeln('   带组件配置 ${e['hasProviderXml'] == true ? '是' : '否'}'
+          '｜已放在桌面 ${e['placed'] ?? 0} 个');
+    }
+    if (m['queryError'] != null) {
+      sb.writeln('');
+      sb.writeln('查询报错：${m['queryError']}');
+    }
+    if (ps.isEmpty) {
+      sb.writeln('');
+      sb.writeln('系统一个都查不到 —— 说明系统没把朝暮当小组件，');
+      sb.writeln('要么装的还是旧版本，要么 ROM 过滤了。');
+    }
+
+    await showDialog<void>(
+      context: ctx,
+      builder: (BuildContext c) => AlertDialog(
+        title: const Text('小组件自检'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420, maxHeight: 440),
+          child: SingleChildScrollView(
+            child: SelectableText(
+              sb.toString(),
+              style: const TextStyle(fontSize: 12.5, height: 1.6),
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: const Text('关闭'),
           ),
         ],
       ),
@@ -970,6 +1051,18 @@ class SettingsPage extends StatelessWidget {
                     ),
                     trailing: const Icon(Icons.chevron_right, size: 18),
                     onTap: () => _pinWidget(context),
+                  ),
+                  ListTile(
+                    title: const Text(
+                      '小组件加不上？点这里自检',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      '看看系统到底认不认朝暮的小组件',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => _widgetDiag(context),
                   ),
                 ]),
 
