@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.24', '2026-11-05', <String>[
+    '小组件默认只显示今天 + 逾期未完成，标题行加「今天/全部」按钮切换',
+  ]),
   AppUpdate('2.27.23', '2026-11-05', <String>[
     '小组件改回可滑动列表：显示全部待办，装不下就上下滑',
     '字加大、完成的置底不消失、显示优先级颜色条',

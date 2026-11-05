@@ -46,6 +46,21 @@
             android:text=""
             android:textSize="12sp"
             android:textColor="#185FA5" />
+
+        <!-- 「今天 / 全部」切换：点一下切换显示范围（2026-11-05） -->
+        <TextView
+            android:id="@+id/widget_scope"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="2dp"
+            android:text="今天"
+            android:textSize="12sp"
+            android:textColor="#185FA5"
+            android:background="@drawable/widget_scope_bg" />
     </LinearLayout>
 
     <TextView

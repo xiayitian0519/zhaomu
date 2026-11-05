@@ -132,6 +132,15 @@
             android:permission="android.permission.BIND_REMOTEVIEWS"
             android:exported="true" />
 
+        <!-- 小组件「今天/全部」切换按钮（2026-11-05） -->
+        <receiver
+            android:name=".WidgetScopeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.xiayitian.chaomu.WIDGET_TOGGLE_SCOPE" />
+            </intent-filter>
+        </receiver>
+
         <!-- 小组件里点一条待办 -> 切换完成 / 撤回（2026-11-04） -->
         <receiver
             android:name=".ToggleReceiver"

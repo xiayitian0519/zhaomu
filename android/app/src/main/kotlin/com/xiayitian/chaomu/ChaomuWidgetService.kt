@@ -156,8 +156,8 @@ class ChaomuWidgetService : RemoteViewsService() {
                         null
                     } ?: continue
 
-                    // 只显示今天及更早的（逾期的排前面）
-                    if (due >= dayEnd) continue
+                    // 默认只显示今天 + 逾期；点了「全部」才显示将来的（2026-11-05）
+                    if (!WidgetScopeReceiver.showAll(ctx) && due >= dayEnd) continue
 
                     val title = t.optString("title", "").trim()
                     if (title.isEmpty()) continue

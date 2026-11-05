@@ -76,6 +76,18 @@ class ChaomuWidget : AppWidgetProvider() {
                     Color.argb(alpha, 255, 255, 255)
                 )
 
+                // 「今天 / 全部」切换按钮（2026-11-05）
+                val showAll = WidgetScopeReceiver.showAll(context)
+                rv.setTextViewText(R.id.widget_scope, if (showAll) "全部" else "今天")
+                val scopeIntent = Intent(context, WidgetScopeReceiver::class.java).apply {
+                    action = WidgetScopeReceiver.ACTION_TOGGLE_SCOPE
+                }
+                val scopePi = PendingIntent.getBroadcast(
+                    context, 999, scopeIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                rv.setOnClickPendingIntent(R.id.widget_scope, scopePi)
+
                 // 绑列表数据源
                 val svcIntent = Intent(context, ChaomuWidgetService::class.java).apply {
                     data = Uri.parse("chaomu://widget/list")
