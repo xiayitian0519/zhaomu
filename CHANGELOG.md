@@ -29,6 +29,55 @@ MIUI 的渠道声音一旦建好就固化，改不动，只能换渠道。
 
 ---
 
+## 2.27.23+82 — 2026-11-05
+
+### 更新摘要
+
+- 小组件改回可滑动列表：显示全部待办，装不下就上下滑
+- 字加大、完成的置底不消失、显示优先级颜色条
+- 背景透明度可在设置里用滑块调
+
+### 改动
+
+1. 恢复 ListView + RemoteViewsService：能滑、能显示全部。
+   （之前 ListView 失败的真正原因是裸 View，已全部换成 TextView。）
+2. 列表项字号从 12.5sp 提到 15sp，色条、勾选圈都加大。
+3. 完成的待办沉底（Service 排序已实现：未完成在前、逾期优先、完成沉底）。
+4. 优先级色条：红/黄/蓝/灰（Service 里已实现）。
+5. 背景透明度：设置页加滑块（0~255，默认 184），存 chaomu.json 的
+   `widgetBgAlpha`，原生侧读它动态设背景色。
+
+---
+
+## 2.27.22+81 — 2026-11-05
+
+### 更新摘要
+
+- 小组件这次有真机日志铁证：裸 View 控件不被允许，已全改成文字控件
+
+### 根因（adb logcat 抓到）
+
+```
+Error inflating RemoteViews
+Class not allowed to be inflated android.view.View
+  at widget_chaomu_static.xml 第 55 行
+```
+
+RemoteViews 只允许白名单内的控件（TextView / LinearLayout 等），
+裸 `<View>` 不在名单里，系统直接拒绝渲染。布局里那条分隔线 + 5 个色条
+都是裸 `<View>`，一共 6 处。
+
+### 改动
+
+这 6 个裸 `<View>` 全部换成 `<TextView>`（设背景色当色块用），
+代码里 setBackgroundColor 对 TextView 同样有效。
+
+### 验证
+
+这是连真机用 adb 抓 logcat 定位的，第一次有确凿证据，不是猜。
+
+---
+
 ## 2.27.21+80 — 2026-11-05
 
 ### 更新摘要

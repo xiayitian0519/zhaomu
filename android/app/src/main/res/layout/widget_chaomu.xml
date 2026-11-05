@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  朝暮桌面小组件外壳（2026-11-04 改成可滑动）。
+  朝暮桌面小组件外壳（2026-11-04 改成可滑动，2026-11-05 修裸 View）。
   列表内容由 ChaomuWidgetService 提供，能上下滑看全部今日待办。
+  注意：分隔线不能用裸 <View>（RemoteViews 白名单不允许），用 TextView 当线。
+  背景色由代码按「透明度」动态 setBackgroundColor 设，所以这里不写 background。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/widget_bg"
-    android:padding="8dp">
+    android:padding="10dp">
 
     <!-- 标题行：点它打开 App -->
     <LinearLayout
@@ -17,14 +19,13 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingTop="2dp"
-        android:paddingBottom="5dp">
+        android:paddingBottom="6dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="朝暮"
-            android:textSize="12sp"
+            android:textSize="14sp"
             android:textStyle="bold"
             android:textColor="#1A1D26" />
 
@@ -33,9 +34,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="8dp"
             android:text=""
-            android:textSize="11sp"
+            android:textSize="12sp"
             android:textColor="#949CAA" />
 
         <TextView
@@ -43,14 +44,14 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""
-            android:textSize="11sp"
+            android:textSize="12sp"
             android:textColor="#185FA5" />
     </LinearLayout>
 
-    <View
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
-        android:background="#E2E6EE" />
+        android:background="#668A91A0" />
 
     <!-- 可上下滑动的待办列表 -->
     <ListView
@@ -60,7 +61,7 @@
         android:layout_weight="1"
         android:divider="#00000000"
         android:dividerHeight="0dp"
-        android:layout_marginTop="2dp" />
+        android:layout_marginTop="4dp" />
 
     <!-- 列表空的时候显示 -->
     <TextView
@@ -69,7 +70,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:text="今天没有待办"
-        android:textSize="12sp"
+        android:textSize="13sp"
         android:textColor="#B8BDC8"
         android:gravity="center"
         android:visibility="gone" />

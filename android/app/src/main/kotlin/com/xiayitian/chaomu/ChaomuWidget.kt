@@ -6,7 +6,8 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.view.View
+import android.graphics.Color
+import android.net.Uri
 import android.widget.RemoteViews
 import org.json.JSONObject
 import java.io.File
@@ -16,19 +17,19 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 朝暮的桌面小组件（2026-11-04 建，2026-11-05 改成静态行）。
+ * 朝暮的桌面小组件（2026-11-04 建，2026-11-05 恢复可滑动列表）。
  *
  * 数据来源：Flutter 把存档写在
  * `getApplicationDocumentsDirectory()/chaomu/chaomu.json`，
  * 安卓上是 `/data/user/0/<包名>/app_flutter/chaomu/chaomu.json`。
- * 小组件是另一个进程，读不到 Flutter 内存，但能直接读这个文件。
  *
- * **为什么不用 ListView（2026-11-05）**：
- * 原来走 RemoteViewsService + ListView 做集合型组件，小米上反复显示
- * 「载入窗口小部件时出现问题」。alpha、service exported、URI 唯一化都试过，
- * 没根治 —— 集合型组件要跨进程绑定数据源，这条路在这台机器上就是不通。
- * 现在改成静态 5 行，updateAppWidget 一次把内容填进去，不依赖任何绑定。
- * 代价：不能上下滑，只显示前 5 条。
+ * 列表内容由 [ChaomuWidgetService] 提供（RemoteViewsService + ListView），
+ * 能上下滑动看全部今日待办。
+ *
+ * 2026-11-05 的关键教训：RemoteViews 只允许白名单内的控件，
+ * 裸 `<View>` 会抛 `Class not allowed to be inflated`，导致整块组件加载失败。
+ * 之前反复的「载入窗口小部件时出现问题」就是这个原因。布局里所有色条/分隔线
+ * 都已经换成 TextView。
  */
 class ChaomuWidget : AppWidgetProvider() {
 
@@ -44,49 +45,13 @@ class ChaomuWidget : AppWidgetProvider() {
 
     companion object {
 
-        /** 静态布局里最多显示几行，要和 widget_chaomu_static.xml 对得上 */
-        private const val MAX_ROWS = 4
+        /** 背景透明度默认值：184 = 72% 不透明 */
+        private const val DEFAULT_BG_ALPHA = 184
 
-        private val ROW_IDS = intArrayOf(
-            R.id.row1, R.id.row2, R.id.row3, R.id.row4, R.id.row5
-        )
-        private val BAR_IDS = intArrayOf(
-            R.id.row1_bar, R.id.row2_bar, R.id.row3_bar, R.id.row4_bar, R.id.row5_bar
-        )
-        private val CHECK_IDS = intArrayOf(
-            R.id.row1_check, R.id.row2_check, R.id.row3_check, R.id.row4_check,
-            R.id.row5_check
-        )
-        private val TITLE_IDS = intArrayOf(
-            R.id.row1_title, R.id.row2_title, R.id.row3_title, R.id.row4_title,
-            R.id.row5_title
-        )
-        private val TIME_IDS = intArrayOf(
-            R.id.row1_time, R.id.row2_time, R.id.row3_time, R.id.row4_time,
-            R.id.row5_time
-        )
-
-        /** 四象限色条 */
-        private val PRIORITY_COLORS = intArrayOf(
-            0xFFE24B4A.toInt(), // 0 重要紧急
-            0xFFEF9F27.toInt(), // 1 重要不紧急
-            0xFF378ADD.toInt(), // 2 不重要紧急
-            0xFF8A91A0.toInt()  // 3 都不算
-        )
-
-        /** 一条待办，给静态行用 */
-        private class Row(
-            val id: String,
-            val title: String,
-            val hhmm: String,
-            val done: Boolean,
-            val priority: Int
-        )
-
-        /** 拼好整块 RemoteViews（内容直接填进去，没有列表控件） */
+        /** 拼好整块 RemoteViews（列表内容是 Service 填的） */
         fun buildView(context: Context): RemoteViews {
             try {
-                val rv = RemoteViews(context.packageName, R.layout.widget_chaomu_static)
+                val rv = RemoteViews(context.packageName, R.layout.widget_chaomu)
 
                 // 点标题行 → 打开 App
                 val launch = Intent(context, MainActivity::class.java).apply {
@@ -101,49 +66,26 @@ class ChaomuWidget : AppWidgetProvider() {
                 val df = SimpleDateFormat("M月d日 EEEE", Locale.CHINA)
                 rv.setTextViewText(R.id.widget_date, df.format(Date()))
 
-                val rows = readTodayRows(context)
-                val total = rows.size
-                val done = rows.count { it.done }
-                rv.setTextViewText(R.id.widget_count, "$done/$total 条")
+                val stat = readTodayStat(context)
+                rv.setTextViewText(R.id.widget_count, "${stat.first}/${stat.second} 条")
 
-                for (i in 0 until MAX_ROWS) {
-                    if (i < rows.size) {
-                        val r = rows[i]
-                        rv.setViewVisibility(ROW_IDS[i], View.VISIBLE)
-                        rv.setTextViewText(TITLE_IDS[i], r.title)
-                        rv.setTextViewText(TIME_IDS[i], r.hhmm)
-                        rv.setTextViewText(CHECK_IDS[i], if (r.done) "✓" else "○")
-                        rv.setTextColor(
-                            TITLE_IDS[i],
-                            if (r.done) 0xFFB8BDC8.toInt() else 0xFF2C2F38.toInt()
-                        )
-                        rv.setInt(BAR_IDS[i], "setBackgroundColor", barColor(r.priority))
+                // 背景透明度（用户在设置里可调，存 chaomu.json 的 widgetBgAlpha）
+                val alpha = readBgAlpha(context)
+                rv.setInt(
+                    R.id.widget_root, "setBackgroundColor",
+                    Color.argb(alpha, 255, 255, 255)
+                )
 
-                        // 点整行 = 切换完成（再点撤回），走 ToggleReceiver
-                        val toggle = Intent(context, ToggleReceiver::class.java).apply {
-                            action = ToggleReceiver.ACTION_TOGGLE
-                            putExtra("todoId", r.id)
-                        }
-                        val tpi = PendingIntent.getBroadcast(
-                            context, 100 + i, toggle,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        )
-                        rv.setOnClickPendingIntent(ROW_IDS[i], tpi)
-                    } else {
-                        rv.setViewVisibility(ROW_IDS[i], View.GONE)
-                    }
+                // 绑列表数据源
+                val svcIntent = Intent(context, ChaomuWidgetService::class.java).apply {
+                    data = Uri.parse("chaomu://widget/list")
                 }
-
-                if (total == 0) {
-                    rv.setViewVisibility(R.id.widget_empty, View.VISIBLE)
-                } else {
-                    rv.setViewVisibility(R.id.widget_empty, View.GONE)
-                }
+                rv.setRemoteAdapter(R.id.widget_list, svcIntent)
+                rv.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
                 return rv
             } catch (t: Throwable) {
-                // 桌面显示「载入窗口小部件时出现问题」时，把真实堆栈写到私有目录，
-                // App 里的「小组件自检」能读出来（2026-11-05）
+                // 渲染失败时把堆栈写到私有目录，App 里的「小组件自检」能读出来
                 try {
                     val f = File(context.filesDir, "widget_error.txt")
                     f.writeText(
@@ -156,19 +98,28 @@ class ChaomuWidget : AppWidgetProvider() {
             }
         }
 
-        private fun barColor(priority: Int): Int {
-            if (priority < 0 || priority > 3) return 0xFF8A91A0.toInt()
-            return PRIORITY_COLORS[priority]
+        /** 读背景透明度（0~255），读不到用默认 184 */
+        private fun readBgAlpha(context: Context): Int {
+            return try {
+                val f = File(context.applicationInfo.dataDir, "app_flutter/chaomu/chaomu.json")
+                if (!f.exists()) return DEFAULT_BG_ALPHA
+                val root = JSONObject(f.readText(Charsets.UTF_8))
+                val v = root.optInt("widgetBgAlpha", DEFAULT_BG_ALPHA)
+                if (v < 0 || v > 255) DEFAULT_BG_ALPHA else v
+            } catch (e: Exception) {
+                DEFAULT_BG_ALPHA
+            }
         }
 
-        /** 读今天的待办，未完成在前、按时间排，最多 MAX_ROWS 条 */
-        private fun readTodayRows(context: Context): List<Row> {
+        /** 返回 (未完成条数, 总条数) */
+        private fun readTodayStat(context: Context): Pair<Int, Int> {
             val f = File(context.applicationInfo.dataDir, "app_flutter/chaomu/chaomu.json")
-            if (!f.exists()) return emptyList()
-            val out = ArrayList<Row>()
+            if (!f.exists()) return Pair(0, 0)
+            var open = 0
+            var total = 0
             try {
                 val root = JSONObject(f.readText(Charsets.UTF_8))
-                val arr = root.optJSONArray("todos") ?: return emptyList()
+                val arr = root.optJSONArray("todos") ?: return Pair(0, 0)
                 val cal = Calendar.getInstance()
                 cal.set(Calendar.HOUR_OF_DAY, 0)
                 cal.set(Calendar.MINUTE, 0)
@@ -177,8 +128,6 @@ class ChaomuWidget : AppWidgetProvider() {
                 val dayStart = cal.timeInMillis
                 val dayEnd = dayStart + 24 * 3600 * 1000L
                 val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-                val hm = SimpleDateFormat("HH:mm", Locale.CHINA)
-
                 for (i in 0 until arr.length()) {
                     val t = arr.optJSONObject(i) ?: continue
                     val dueStr = t.optString("due", "")
@@ -188,27 +137,14 @@ class ChaomuWidget : AppWidgetProvider() {
                     } catch (e: Exception) {
                         null
                     } ?: continue
-                    if (due < dayStart || due >= dayEnd) continue
-                    val title = t.optString("title", "").trim()
-                    if (title.isEmpty()) continue
-                    val hhmm = hm.format(Date(due))
-                    // 23:59 表示「当天截止」，不显示具体时分，免得看着像半夜提醒
-                    out.add(
-                        Row(
-                            id = t.optString("id", ""),
-                            title = title,
-                            hhmm = if (hhmm == "23:59") "" else hhmm,
-                            done = t.optBoolean("done", false),
-                            priority = t.optInt("priority", -1)
-                        )
-                    )
+                    if (due >= dayEnd) continue
+                    total++
+                    if (!t.optBoolean("done", false)) open++
                 }
             } catch (e: Exception) {
-                return emptyList()
+                return Pair(0, 0)
             }
-            // 未完成在前；同状态按时间（同一天内 HH:mm 字典序等于时间序）
-            out.sortWith(compareBy({ it.done }, { it.hhmm }))
-            return if (out.size > MAX_ROWS) out.subList(0, MAX_ROWS) else out
+            return Pair(open, total)
         }
 
         /** 让所有小组件立刻刷一次（4×2 和 4×4 都刷） */
@@ -220,6 +156,7 @@ class ChaomuWidget : AppWidgetProvider() {
             )) {
                 val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
                 for (id in ids) {
+                    mgr.notifyAppWidgetViewDataChanged(id, R.id.widget_list)
                     mgr.updateAppWidget(id, buildView(context))
                 }
             }

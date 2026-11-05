@@ -152,6 +152,10 @@ class AppState extends ChangeNotifier {
   /// 2026-11-05 新增：远端检查一天最多提醒一次，免得每次进 App 都糊一脸。
   String lastPromptDay = '';
 
+  /// 桌面小组件背景不透明度（0~255，默认 184 = 72% 不透明）。
+  /// 2026-11-05 加：用户在设置里用滑块调，widget 原生侧读 chaomu.json 里的这个值。
+  int widgetBgAlpha = 184;
+
   /// 日历页：下面的「当日待办」列表有没有折叠起来。
   ///
   /// 折叠时那块区域收掉，日历格子就能撑高、每格多显示几行待办。
@@ -269,6 +273,9 @@ class AppState extends ChangeNotifier {
     if (m['lastPromptDay'] is String) {
       lastPromptDay = m['lastPromptDay'] as String;
     }
+    if (m['widgetBgAlpha'] is num) {
+      widgetBgAlpha = (m['widgetBgAlpha'] as num).toInt().clamp(0, 255);
+    }
     if (m['dayStartHour'] is num) {
       final int v = (m['dayStartHour'] as num).toInt();
       dayStartHour = v < 0 ? 0 : (v > 23 ? 23 : v);
@@ -313,6 +320,7 @@ class AppState extends ChangeNotifier {
         'overdueCollapsed': overdueCollapsed,
         'lastSeenVersion': lastSeenVersion,
         'lastPromptDay': lastPromptDay,
+        'widgetBgAlpha': widgetBgAlpha,
         'remindOnMigrated': remindOnMigrated,
         'historyMode': historyMode,
         'historyMonths': historyMonths.toList(),
@@ -807,6 +815,13 @@ class AppState extends ChangeNotifier {
   /// 记下「今天已经提醒过有新版本了」
   Future<void> setLastPromptDay(String d) async {
     lastPromptDay = d;
+    await save();
+  }
+
+  /// 调小组件背景透明度（0~255）
+  Future<void> setWidgetBgAlpha(int v) async {
+    widgetBgAlpha = v.clamp(0, 255);
+    notifyListeners();
     await save();
   }
 

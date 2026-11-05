@@ -5,6 +5,14 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.23', '2026-11-05', <String>[
+    '小组件改回可滑动列表：显示全部待办，装不下就上下滑',
+    '字加大、完成的置底不消失、显示优先级颜色条',
+    '背景透明度可在设置里用滑块调',
+  ]),
+  AppUpdate('2.27.22', '2026-11-05', <String>[
+    '小组件这次有真机日志铁证：裸 View 控件不被允许，已全改成文字控件',
+  ]),
   AppUpdate('2.27.21', '2026-11-05', <String>[
     '一键添加：成功自动跳回桌面；钉不上自动打开系统选择器，点一下朝暮即放好',
   ]),

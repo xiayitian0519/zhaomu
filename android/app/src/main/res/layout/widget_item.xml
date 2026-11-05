@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  小组件里的一条待办（2026-11-04 新增）。
+  小组件里的一条待办（2026-11-04 新增，2026-11-05 改）。
   整行可点：切换完成 / 撤回。
+  注意：item_bar 不能用裸 <View>（RemoteViews 白名单不允许），用 TextView 当色块。
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/item_root"
@@ -9,23 +10,23 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingTop="5dp"
-    android:paddingBottom="5dp">
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
     <!-- 左边颜色条（优先级） -->
-    <View
+    <TextView
         android:id="@+id/item_bar"
-        android:layout_width="3dp"
-        android:layout_height="16dp"
-        android:layout_marginEnd="7dp"
+        android:layout_width="4dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="8dp"
         android:background="#5A6270" />
 
     <!-- 勾选圈：点整行就切 -->
     <ImageView
         android:id="@+id/item_check"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:layout_marginEnd="7dp"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="8dp"
         android:src="@android:drawable/checkbox_off_background" />
 
     <LinearLayout
@@ -41,7 +42,7 @@
             android:maxLines="2"
             android:ellipsize="end"
             android:text=""
-            android:textSize="12.5sp"
+            android:textSize="15sp"
             android:textColor="#1A1D26" />
 
         <TextView
@@ -50,7 +51,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="1dp"
             android:text=""
-            android:textSize="10.5sp"
+            android:textSize="12sp"
             android:textColor="#949CAA"
             android:visibility="gone" />
     </LinearLayout>

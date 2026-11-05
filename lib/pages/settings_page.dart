@@ -1090,6 +1090,26 @@ class SettingsPage extends StatelessWidget {
                     trailing: const Icon(Icons.chevron_right, size: 18),
                     onTap: () => _widgetDiag(context),
                   ),
+                if (!Platform.isWindows)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          '小组件背景不透明度 · ${(st.widgetBgAlpha / 255 * 100).round()}%',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        Slider(
+                          value: st.widgetBgAlpha.toDouble(),
+                          min: 0,
+                          max: 255,
+                          onChanged: (double v) =>
+                              st.setWidgetBgAlpha(v.round()),
+                        ),
+                      ],
+                    ),
+                  ),
                 ]),
 
               _sectionTitle('提醒'),

@@ -49,7 +49,7 @@
             android:textColor="#185FA5" />
     </LinearLayout>
 
-    <View
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
         android:background="#668A91A0" />
@@ -64,7 +64,7 @@
         android:paddingBottom="5dp"
         android:visibility="gone">
 
-        <View
+        <TextView
             android:id="@+id/row1_bar"
             android:layout_width="3dp"
             android:layout_height="15dp"
@@ -111,7 +111,7 @@
         android:paddingBottom="5dp"
         android:visibility="gone">
 
-        <View
+        <TextView
             android:id="@+id/row2_bar"
             android:layout_width="3dp"
             android:layout_height="15dp"
@@ -158,7 +158,7 @@
         android:paddingBottom="5dp"
         android:visibility="gone">
 
-        <View
+        <TextView
             android:id="@+id/row3_bar"
             android:layout_width="3dp"
             android:layout_height="15dp"
@@ -205,7 +205,7 @@
         android:paddingBottom="5dp"
         android:visibility="gone">
 
-        <View
+        <TextView
             android:id="@+id/row4_bar"
             android:layout_width="3dp"
             android:layout_height="15dp"
@@ -252,7 +252,7 @@
         android:paddingBottom="5dp"
         android:visibility="gone">
 
-        <View
+        <TextView
             android:id="@+id/row5_bar"
             android:layout_width="3dp"
             android:layout_height="15dp"
