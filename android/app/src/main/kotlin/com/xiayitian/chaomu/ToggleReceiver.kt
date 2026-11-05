@@ -26,6 +26,7 @@ class ToggleReceiver : BroadcastReceiver() {
         if (intent.action != ACTION_TOGGLE) return
         val id = intent.getStringExtra("todoId") ?: return
         if (id.isEmpty()) return
+        android.util.Log.d("CMWidget", "toggle id=$id")
 
         val f = File(context.applicationInfo.dataDir, "app_flutter/chaomu/chaomu.json")
         if (!f.exists()) return

@@ -152,8 +152,10 @@ class AppState extends ChangeNotifier {
   /// 2026-11-05 新增：远端检查一天最多提醒一次，免得每次进 App 都糊一脸。
   String lastPromptDay = '';
 
-  /// 桌面小组件背景不透明度（0~255，默认 184 = 72% 不透明）。
-  /// 2026-11-05 加：用户在设置里用滑块调，widget 原生侧读 chaomu.json 里的这个值。
+  /// 桌面小组件背景不透明度（0~255）。**只为兼容老存档保留**。
+  /// 2026-11-05 起真实值由原生侧的 WidgetPrefs 存 SharedPreferences，
+  /// 组件设置页 / 组件自身 / App 入口读写同一份；Flutter 不再改这个值。
+  /// WidgetPrefs.bgAlpha() 会在第一次读时把这里的老值搬过去。
   int widgetBgAlpha = 184;
 
   /// 日历页：下面的「当日待办」列表有没有折叠起来。

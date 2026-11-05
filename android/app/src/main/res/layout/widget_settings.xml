@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  桌面小组件自己的设置页（2026-11-05）。
+  这是普通 Activity 的布局，不是 RemoteViews —— 裸 <View> / FrameLayout 在这里随便用。
+  小组件那个 widget_chaomu.xml 才受 RemoteViews 白名单限制，别把两边的规矩搞混。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F5F6F8"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="桌面小组件设置"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#1A1D26" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="改动会立刻反映到桌面上的小组件"
+        android:textSize="12sp"
+        android:textColor="#8A91A0" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="26dp"
+        android:text="背景不透明度"
+        android:textSize="15sp"
+        android:textColor="#1A1D26" />
+
+    <TextView
+        android:id="@+id/txt_percent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text=""
+        android:textSize="12sp"
+        android:textColor="#185FA5" />
+
+    <!-- 预览：底下垫深色模拟壁纸，上面盖一层可调透明度的白 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="96dp"
+        android:layout_marginTop="10dp"
+        android:background="#3A4A5E">
+
+        <View
+            android:id="@+id/preview_card"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="朝暮 · 今日待办"
+            android:textSize="14sp"
+            android:textColor="#1A1D26" />
+    </FrameLayout>
+
+    <SeekBar
+        android:id="@+id/seek_alpha"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:max="255" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="26dp"
+        android:text="显示范围"
+        android:textSize="15sp"
+        android:textColor="#1A1D26" />
+
+    <Switch
+        android:id="@+id/switch_all"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="显示全部待办（含将来的）"
+        android:textSize="14sp"
+        android:textColor="#1A1D26" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="关掉时只显示今天和逾期未完成的"
+        android:textSize="12sp"
+        android:textColor="#8A91A0" />
+
+    <TextView
+        android:id="@+id/txt_scope_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:padding="10dp"
+        android:background="#E8F0FB"
+        android:text=""
+        android:textSize="12sp"
+        android:lineSpacingExtra="3dp"
+        android:textColor="#185FA5" />
+
+    <Button
+        android:id="@+id/btn_done"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:text="完成" />
+
+</LinearLayout>

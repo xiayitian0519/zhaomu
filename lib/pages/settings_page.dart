@@ -716,6 +716,24 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
+  /// 打开「小组件自己的设置页」（2026-11-05 用户要求）。
+  ///
+  /// 透明度 / 显示范围已经从 App 设置挪到组件设置里了 —— 组件上也有「设置」
+  /// 按钮直达同一个页面，两处改的是同一份数据，不会各存各的。
+  static Future<void> _openWidgetSettings(BuildContext ctx) async {
+    bool ok = false;
+    try {
+      ok = await const MethodChannel('com.xiayitian.chaomu/ringtone')
+              .invokeMethod<Object?>('openWidgetSettings') ==
+          true;
+    } catch (_) {}
+    if (!ok && ctx.mounted) {
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text('这一版打不开组件设置，请更新到最新版')),
+      );
+    }
+  }
+
   /// 跳回桌面（一键添加成功后调用）。
   static Future<void> _goHome() async {
     try {
@@ -1091,24 +1109,14 @@ class SettingsPage extends StatelessWidget {
                     onTap: () => _widgetDiag(context),
                   ),
                 if (!Platform.isWindows)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          '小组件背景不透明度 · ${(st.widgetBgAlpha / 255 * 100).round()}%',
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        Slider(
-                          value: st.widgetBgAlpha.toDouble(),
-                          min: 0,
-                          max: 255,
-                          onChanged: (double v) =>
-                              st.setWidgetBgAlpha(v.round()),
-                        ),
-                      ],
+                  ListTile(
+                    title: const Text('小组件设置', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text(
+                      '调背景透明度、切换只看今天还是显示全部，改完桌面立刻变',
+                      style: TextStyle(fontSize: 12),
                     ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => _openWidgetSettings(context),
                   ),
                 ]),
 

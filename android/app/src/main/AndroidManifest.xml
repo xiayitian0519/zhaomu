@@ -72,6 +72,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- 桌面小组件自己的设置页（2026-11-05 用户要求：透明度放组件设置里）。
+             exported=true 是因为组件标题栏的按钮由桌面（com.miui.home）代为拉起，
+             属于跨应用启动；这一页只读写本应用的 SharedPreferences，不接收外部数据。
+             刻意不加 android:configure：那样每次「一键添加」都会多弹一页，
+             之前为添加流程踩过很多坑，这次不动那条链路。 -->
+        <activity
+            android:name=".WidgetSettingsActivity"
+            android:exported="true"
+            android:label="@string/widget_settings_name"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

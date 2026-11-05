@@ -15,21 +15,19 @@ class WidgetScopeReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != ACTION_TOGGLE_SCOPE) return
-        val sp = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val cur = sp.getBoolean(KEY_SHOW_ALL, false)
-        sp.edit().putBoolean(KEY_SHOW_ALL, !cur).apply()
-        // 刷新所有小组件
+        val next = !WidgetPrefs.showAll(context)
+        WidgetPrefs.setShowAll(context, next)
+        android.util.Log.d("CMWidget", "scope toggle -> showAll=$next")
+        // 刷新所有小组件（refresh 里会重建 adapter，见 ChaomuWidget 的注释）
         ChaomuWidget.refresh(context)
     }
 
     companion object {
         const val ACTION_TOGGLE_SCOPE = "com.xiayitian.chaomu.WIDGET_TOGGLE_SCOPE"
-        const val PREFS = "chaomu_widget_prefs"
-        const val KEY_SHOW_ALL = "widgetShowAll"
 
-        /** 读当前是不是「显示全部」 */
-        fun showAll(context: Context): Boolean =
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .getBoolean(KEY_SHOW_ALL, false)
+        // 下面几个保留是为了兼容老调用，统一委托给 WidgetPrefs
+        const val PREFS = WidgetPrefs.PREFS
+        const val KEY_SHOW_ALL = WidgetPrefs.KEY_SHOW_ALL
+        fun showAll(context: Context): Boolean = WidgetPrefs.showAll(context)
     }
 }

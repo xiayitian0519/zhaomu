@@ -82,6 +82,15 @@ class MainActivity : FlutterActivity() {
                     "goHome" -> {
                         result.success(goHome())
                     }
+                    // 让所有桌面小组件立刻刷新（App 里改了透明度等要触发）
+                    "refreshWidgets" -> {
+                        ChaomuWidget.refresh(this)
+                        result.success(true)
+                    }
+                    // 打开「小组件自己的设置页」（2026-11-05 用户要求）
+                    "openWidgetSettings" -> {
+                        result.success(openWidgetSettings())
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -138,21 +147,43 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
+     * 打开小组件自己的设置页（背景透明度 / 显示范围）。
+     * 和组件标题栏「设置」按钮指向同一个 Activity，两处入口不会各存一份值。
+     */
+    private fun openWidgetSettings(): Boolean {
+        return try {
+            val i = Intent(this, WidgetSettingsActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(i)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * 直接拉起系统的「选择小部件」界面（2026-11-05 加的兜底）。
      *
      * requestPinAppWidget 在部分 ROM 上不实现，这时至少能把系统的小部件
      * 选择器拉起来，比让用户自己找「长按桌面」靠谱。
+     *
+     * 2026-11-05 修：以前每次点都 allocateAppWidgetId() 分配一个新 id 且不释放，
+     * dumpsys appwidget 里攒了十几个 host.callbacks=null 的孤儿 id，
+     * 自检页数 placed 会把它们算进去，出现「说加上了、桌面其实没有」的假成功。
+     * 现在复用同一个 host 和同一个 id，最多占一个。
      */
+    private var widgetHost: AppWidgetHost? = null
+    private var pickerWidgetId = -1
+
     private fun openWidgetPicker(): Boolean {
         return try {
-            // 分配 id 必须走 AppWidgetHost，AppWidgetManager 上没有这个方法
-            val id = try {
-                AppWidgetHost(this, 1024).allocateAppWidgetId()
-            } catch (e: Exception) {
-                -1
+            if (widgetHost == null) widgetHost = AppWidgetHost(this, 1024)
+            if (pickerWidgetId <= 0) {
+                pickerWidgetId = widgetHost!!.allocateAppWidgetId()
             }
             val i = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
-                if (id > 0) putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pickerWidgetId)
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, IntArray(0))
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }

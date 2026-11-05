@@ -29,6 +29,74 @@ MIUI 的渠道声音一旦建好就固化，改不动，只能换渠道。
 
 ---
 
+## 2.27.26+85 — 2026-11-05
+
+### 更新摘要
+
+- 桌面小组件右上角新增「设置」，透明度和显示范围都搬进去了
+- 拖透明度滑块时桌面组件立刻跟着变，边调边能看到效果
+- 「今天」只看今天的和逾期未完成的，「全部」才放出逾期已完成和将来的
+- 修好点组件里的待办打勾 / 撤回，之前点了完全没反应
+- 修好点「今天 / 全部」之后列表不刷新，已完成的字色也加深了
+
+### 真机取证（2026-11-05，adb logcat，设备 91aa4265）
+
+1. 点列表项没反应：MIUI 反复打
+   `W RemoteViews: Cannot SetOnClickResponse for collection item`。
+   集合型组件给每一行直接挂 PendingIntent 会被桌面丢掉。改成
+   `setPendingIntentTemplate`（MUTABLE）+ 每行 `setOnClickFillInIntent` 补 todoId。
+2. 点「今天/全部」时按钮文字从「今天」变「全部」，但列表和计数纹丝不动：
+   系统日志 `Trying to notify widget update deferred for id: 107`，
+   MIUI 把 `notifyAppWidgetViewDataChanged` 吞了。改成先换整块 RemoteViews
+   （adapter data 带 scope + 时间戳，强制重新绑定 Service）再补一次通知。
+3. 背景纯白：透明度原先存在 Flutter 的 chaomu.json 里，App 改完组件不感知。
+   统一迁到 SharedPreferences `chaomu_widget_prefs`，组件设置页 / App 入口 /
+   组件本身读写同一份，也不再和 Flutter 主进程并发写存档。
+   真机把滑块拉到 0% 后壁纸完整透出，确认 `setBackgroundColor` 是生效的。
+4. 「今天/全部」点着像没反应（用户第二次纠正）：
+   加日志后真机读到 `showAll=true rows=35` / `showAll=false rows=35`。
+   刷新链路是通的，问题是**过滤口径**——默认视图把「逾期已完成」也算了进去，
+   用户数据里今天只有 11 条、其余大多是逾期已完成，两种模式自然一模一样。
+   改成：默认 = 今天全部 + 逾期未完成；「全部」= 再加逾期已完成 + 明天以后。
+   标题计数改成同口径并带「今天/全部」字样，设置页直接列出四类各多少条。
+
+### 改动文件
+
+- 新增 `WidgetSettingsActivity.kt`、`WidgetPrefs.kt`、`res/layout/widget_settings.xml`
+- `ChaomuWidget.kt`：设置按钮、template、adapter data、refresh 顺序、读新设置源
+- `ChaomuWidgetService.kt`：fillInIntent、完成态字色 #6B7280
+- `WidgetScopeReceiver.kt`、`MainActivity.kt`、`AndroidManifest.xml`、`strings.xml`
+- `widget_chaomu.xml`：标题栏加「设置」按钮，日期改为单行省略
+- `lib/pages/settings_page.dart`：滑块换成「小组件设置」入口
+- `MainActivity.openWidgetPicker()`：复用同一个 AppWidgetHost，
+  不再每次点都泄漏一个 widget id（之前 dumpsys 里攒了十几个孤儿 id，
+  自检会把它们算成「已添加」造成假成功）
+
+---
+
+## 2.27.25+84 — 2026-11-05
+
+### 更新摘要
+
+- 修「点完成/点今天全部没反应」：列表数据源强制重建
+- 修「已完成待办字看不清」：灰色加深
+- 修「调透明度没反应」：App 改完立刻刷新组件
+
+### 问题
+
+三个反馈其实同一个根因：App 或组件改了数据，但组件是独立进程，
+不会自己感知，而 MIUI 上 notifyAppWidgetViewDataChanged 经常不触发
+数据源重新读取。
+
+### 改动
+
+1. 列表数据源 intent 的 data 带时间戳：每次更新都是新的 adapter 标识，
+   强制 RemoteViewsService 重建 Factory、重新读数据。
+2. 完成待办标题色 #B8BDC8 → #8A91A0，白底上看得清。
+3. MainActivity 加 `refreshWidgets` 通道；设置页拖透明度滑块后立刻刷新组件。
+
+---
+
 ## 2.27.24+83 — 2026-11-05
 
 ### 更新摘要

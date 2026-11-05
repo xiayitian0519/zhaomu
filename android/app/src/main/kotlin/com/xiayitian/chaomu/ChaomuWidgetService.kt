@@ -1,13 +1,9 @@
 package com.xiayitian.chaomu
 
-import android.app.PendingIntent
-import android.appwidget.AppWidgetManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.Paint
-import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
@@ -77,8 +73,9 @@ class ChaomuWidgetService : RemoteViewsService() {
             )
             rv.setViewVisibility(R.id.item_time, if (r.timeText.isEmpty()) View.GONE else View.VISIBLE)
 
-            // 完成态：变灰 + 划线
-            val titleColor = if (r.done) Color.parseColor("#B8BDC8") else Color.parseColor("#1A1D26")
+            // 完成态：变灰 + 划线。灰色要够深，半透明白底上才看得清
+            // （2026-11-05 用户反馈「跟背景一个色」，从 #B8BDC8 → #8A91A0 → #6B7280）
+            val titleColor = if (r.done) Color.parseColor("#454D5C") else Color.parseColor("#1A1D26")
             rv.setTextColor(R.id.item_title, titleColor)
             rv.setInt(R.id.item_title, "setPaintFlags",
                 if (r.done) Paint.ANTI_ALIAS_FLAG or Paint.STRIKE_THRU_TEXT_FLAG
@@ -100,17 +97,15 @@ class ChaomuWidgetService : RemoteViewsService() {
             }
             rv.setInt(R.id.item_bar, "setBackgroundColor", Color.parseColor(bar))
 
-            // 点整行 = 切换完成状态（可撤回：再点一次）
-            val intent = Intent(ctx, ToggleReceiver::class.java).apply {
-                action = ToggleReceiver.ACTION_TOGGLE
-                data = Uri.parse("chaomu://toggle/${r.id}")
-                putExtra("todoId", r.id)
-            }
-            val pi = PendingIntent.getBroadcast(
-                ctx, r.id.hashCode(), intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            // 点整行 = 切换完成状态（可撤回：再点一次）。
+            // 集合型组件的标准做法：外层 setPendingIntentTemplate +
+            // 每一行 setOnClickFillInIntent 补 todoId。
+            // 之前给每一行直接 setOnClickPendingIntent，真机日志报
+            // "Cannot SetOnClickResponse for collection item"，点击全被丢掉。
+            rv.setOnClickFillInIntent(
+                R.id.item_root,
+                Intent().putExtra("todoId", r.id)
             )
-            rv.setOnClickPendingIntent(R.id.item_root, pi)
 
             return rv
         }
@@ -129,7 +124,13 @@ class ChaomuWidgetService : RemoteViewsService() {
             val f = File(ctx.applicationInfo.dataDir, "app_flutter/chaomu/chaomu.json")
             if (!f.exists()) return emptyList()
 
+            val all = WidgetPrefs.showAll(ctx)
             val out = ArrayList<Row>()
+            // 分布统计：今天 / 逾期未完成 / 逾期已完成 / 明天及以后
+            var cToday = 0
+            var cOverdueOpen = 0
+            var cOverdueDone = 0
+            var cFuture = 0
             try {
                 val root = JSONObject(f.readText(Charsets.UTF_8))
                 val arr = root.optJSONArray("todos") ?: return emptyList()
@@ -156,18 +157,40 @@ class ChaomuWidgetService : RemoteViewsService() {
                         null
                     } ?: continue
 
-                    // 默认只显示今天 + 逾期；点了「全部」才显示将来的（2026-11-05）
-                    if (!WidgetScopeReceiver.showAll(ctx) && due >= dayEnd) continue
+                    val isOverdue = due < dayStart
+                    val isFuture = due >= dayEnd
+
+                    when {
+                        isFuture -> cFuture++
+                        isOverdue && done -> cOverdueDone++
+                        isOverdue -> cOverdueOpen++
+                        else -> cToday++
+                    }
+
+                    // 默认视图 = 今天全部（含已完成，置底） + 逾期未完成。
+                    // 逾期已完成的、将来的一律不进默认视图 —— 否则一堆历史旧待办
+                    // 把今天那几条淹了，而且「今天/全部」两种模式条数一样，
+                    // 用户会以为按钮坏了（2026-11-05 用户纠正：今天才 11 条，
+                    // 其他很多是逾期已完成的）。点「全部」才全放出来。
+                    if (!all && (isFuture || (isOverdue && done))) continue
 
                     val title = t.optString("title", "").trim()
                     if (title.isEmpty()) continue
 
-                    val overdue = !done && due < dayStart
+                    val overdue = isOverdue && !done
                     val hasTime = t.optBoolean("dueHasTime", false)
-                    val timeText = if (hasTime) {
+                    val hhmm = if (hasTime) {
                         SimpleDateFormat("HH:mm", Locale.US).format(Date(due))
                     } else {
                         ""
+                    }
+                    // 「全部」模式下每行都带日期：即使待办全挤在今天、两种范围
+                    // 条数一样，列表每行多一行日期，也能一眼看出模式切了。
+                    val timeText = if (all) {
+                        val md = SimpleDateFormat("M月d日", Locale.CHINA).format(Date(due))
+                        if (hhmm.isEmpty()) md else "$md $hhmm"
+                    } else {
+                        hhmm
                     }
 
                     out.add(
@@ -186,9 +209,15 @@ class ChaomuWidgetService : RemoteViewsService() {
             }
 
             // 未完成在前（逾期优先），已完成沉底
-            return out.sortedWith(
+            val rows = out.sortedWith(
                 compareBy<Row> { it.done }.thenByDescending { it.overdue }
             )
+            android.util.Log.d(
+                "CMWidget",
+                "load: showAll=$all today=$cToday overdueOpen=$cOverdueOpen " +
+                    "overdueDone=$cOverdueDone future=$cFuture -> rows=${rows.size}"
+            )
+            return rows
         }
     }
 }

@@ -9,4 +9,7 @@
     <!-- 2026-11-05：4×4 大卡是独立的组件，列表里单独一条 -->
     <string name="widget_name_big">朝暮 · 今日待办（大卡）</string>
     <string name="widget_desc_big">4×4 大卡，一屏看全今天的待办</string>
+
+    <!-- 2026-11-05：桌面小组件自己的设置页标题 -->
+    <string name="widget_settings_name">朝暮小组件设置</string>
 </resources>
