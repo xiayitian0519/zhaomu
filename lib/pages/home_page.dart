@@ -257,8 +257,28 @@ class _HomePageState extends State<HomePage> {
         // 以前挂在分组标题行右边（widgets.dart 的 GroupHeader.showSort），
         // 折叠逾期组时那行只剩一条「逾期 · N 条未完成」，排序按钮跟着没了。
         TextButton(
-          onPressed: () =>
-              st.setSortMode(st.sortMode == 'time' ? 'priority' : 'time'),
+          onPressed: () {
+            final String next =
+                st.sortMode == 'time' ? 'priority' : 'time';
+            st.setSortMode(next);
+            // 2026-11-05：给个明确的反馈，否则用户点完看不出区别，
+            // 还以为排序没生效。
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(next == 'priority'
+                    ? '已按优先级排序：标了象限的在前，没标的排后面'
+                    : '已按时间排序'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            if (_scroll.hasClients) {
+              _scroll.animateTo(
+                0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOut,
+              );
+            }
+          },
           style: _actionStyle(),
           child: Text(st.sortMode == 'time' ? '↕ 时间' : '↕ 优先级'),
         ),

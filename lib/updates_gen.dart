@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.19', '2026-11-05', <String>[
+    '点排序现在有明确反馈：弹提示 + 列表滚回顶部',
+  ]),
   AppUpdate('2.27.18', '2026-11-05', <String>[
     '小组件自检第一行加「朝暮版本」，好确认装的是不是最新版',
   ]),
