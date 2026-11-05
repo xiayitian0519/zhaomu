@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.10', '2026-11-05', <String>[
+    '电脑版更新也能只下补丁了，14 MB 的包只下 3.6 MB',
+  ]),
   AppUpdate('2.27.9', '2026-11-05', <String>[
     '「发现新版本」里点更新，改回在 App 里直接下，能只下补丁就只下补丁',
     '落后好几个版本也能挑到对应的补丁包',

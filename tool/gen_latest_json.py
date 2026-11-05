@@ -43,25 +43,43 @@ def read_notes(ver):
     return ''
 
 
+PC_DIR = os.path.join(os.path.expanduser('~'), 'Desktop', '朝暮', '电脑安装包')
+
+
 def find_patches(ver, limit=3):
     """找所有指向本版本的补丁，按源版本从新到旧，最多留 limit 个。
 
     2026-11-05 改成多份：用户可能落后两三个版本，只带最新一个补丁的话
     匹配不上就只能整包重下。多带几份，只要能对上本地的旧包缓存就能增量。
+
+    安卓补丁在「手机安装包」目录，名字 `x-to-y.patch`，kind=apk；
+    电脑补丁在「电脑安装包」目录，名字 `x-to-y-win.patch`，kind=win。
     """
-    if not os.path.isdir(APK_DIR):
-        return []
-    hits = []
-    for f in os.listdir(APK_DIR):
-        m = re.match(r'^([\d.]+)-to-%s\.patch$' % re.escape(ver), f)
-        if not m:
-            continue
-        hits.append(([int(x) for x in m.group(1).split('.')], m.group(1), f))
-    hits.sort(reverse=True)
     out = []
-    for _, src, f in hits[:limit]:
+    hits = []
+    if os.path.isdir(APK_DIR):
+        for f in os.listdir(APK_DIR):
+            m = re.match(r'^([\d.]+)-to-%s\.patch$' % re.escape(ver), f)
+            if m:
+                hits.append(([int(x) for x in m.group(1).split('.')], m.group(1), f))
+    hits.sort(reverse=True)
+    limit_apk = limit
+    for _, src, f in hits[:limit_apk]:
         path = os.path.join(APK_DIR, f)
-        out.append({'from': src, 'file': f, 'size': os.path.getsize(path)})
+        out.append({'kind': 'apk', 'from': src, 'file': f,
+                    'dir': APK_DIR, 'size': os.path.getsize(path)})
+
+    hits = []
+    if os.path.isdir(PC_DIR):
+        for f in os.listdir(PC_DIR):
+            m = re.match(r'^([\d.]+)-to-%s-win\.patch$' % re.escape(ver), f)
+            if m:
+                hits.append(([int(x) for x in m.group(1).split('.')], m.group(1), f))
+    hits.sort(reverse=True)
+    for _, src, f in hits[:limit]:
+        path = os.path.join(PC_DIR, f)
+        out.append({'kind': 'win', 'from': src, 'file': f,
+                    'dir': PC_DIR, 'size': os.path.getsize(path)})
     return out
 
 
@@ -82,8 +100,10 @@ def main():
         'win': dl + 'chaomu-%s-windows-x64.zip' % ver,
         'patches': [],
     }
+    # 补丁分平台：安卓放 releases/download，电脑那份也在同一 tag 下
     for p in find_patches(ver):
         doc['patches'].append({
+            'kind': p['kind'],
             'from': p['from'],
             'url': dl + p['file'],
             'size': p['size'],

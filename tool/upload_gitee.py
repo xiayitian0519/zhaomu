@@ -140,9 +140,15 @@ def main():
     files = [(apk_src, 'chaomu-%s-arm64.apk' % ver)]
     if os.path.isfile(zip_src):
         files.append((zip_src, 'chaomu-%s-windows-x64.zip' % ver))
+    # 安卓补丁
     for f in sorted(os.listdir(apk_dir)):
         if f.endswith('.patch') and f.endswith('-to-%s.patch' % ver):
             files.append((os.path.join(apk_dir, f), f))
+    # 电脑补丁（对 zip 做的差分，名字带 -win）
+    if os.path.isdir(pc_dir):
+        for f in sorted(os.listdir(pc_dir)):
+            if f.endswith('-win.patch') and f.endswith('-to-%s-win.patch' % ver):
+                files.append((os.path.join(pc_dir, f), f))
 
     ensure_repo(owner, repo, token)
     tag = 'v%s' % ver

@@ -136,11 +136,18 @@ class Updater {
       String? patchUrl;
       String? patchFrom;
       int? patchSize;
+      // 2026-11-05：电脑版也走增量了，补丁分两种
+      //   kind = "apk"（安卓安装包）或 "win"（Windows 压缩包）
+      // 没写 kind 的老数据一律当 apk，向后兼容。
+      final String wantKind = Platform.isAndroid ? 'apk' : 'win';
       final Object? ps = o['patches'];
       if (ps is List && current != null && current.isNotEmpty) {
         for (final dynamic e in ps) {
           if (e is! Map<String, dynamic>) continue;
           if ((e['from'] ?? '').toString() != current) continue;
+          final String kind =
+              (e['kind'] ?? 'apk').toString().trim().toLowerCase();
+          if (kind != wantKind) continue;
           final String u = (e['url'] ?? '').toString();
           if (u.isEmpty) continue;
           patchUrl = u;
@@ -229,10 +236,14 @@ class Updater {
           if (nm.endsWith('.apk') && nm.contains('arm64')) apk = dl;
           if (nm.endsWith('.zip')) zip = dl;
 
-          // 补丁命名约定：<旧版本>-to-<新版本>.patch
-          // 例如 2.26.1-to-2.26.2.patch
+          // 补丁命名约定：<旧版本>-to-<新版本>.patch（安卓安装包）
+          //              <旧版本>-to-<新版本>-win.patch（Windows 压缩包）
           if (nm.endsWith('.patch') && current != null && current.isNotEmpty) {
-            final String base = nm.substring(0, nm.length - 6);
+            final bool isWin = nm.endsWith('-win.patch');
+            // 只收本平台那一份，否则拿安卓补丁去合 zip 必失败
+            if (isWin == Platform.isAndroid) continue;
+            String base = nm.substring(0, nm.length - 6);
+            if (isWin) base = base.substring(0, base.length - 4);
             final List<String> seg = base.split('-to-');
             if (seg.length == 2 && seg[0] == current) {
               patch = dl;
@@ -326,7 +337,9 @@ class Updater {
     final File newFile = File('${dir.path}$sep' + 'chaomu-${info.latest}.$ext');
 
     // ---- 先试增量 ----
-    if (info.hasPatch && Platform.isAndroid) {
+    // 2026-11-05：电脑版也走这条路。Windows 的补丁是对 zip 做的，
+    // 实测 14.2 MB 的包能压到 3.6 MB（省 75%），比整包下划算。
+    if (info.hasPatch) {
       final File oldApk = File('${dir.path}${sep}chaomu-${info.patchFrom}.$ext');
       if (await oldApk.exists()) {
         try {
