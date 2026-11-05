@@ -653,11 +653,22 @@ class SettingsPage extends StatelessWidget {
       }
     } catch (_) {}
     if (!ctx.mounted) return;
+
+    // 2026-11-05 改：不能信 ok=true。
+    // MIUI 会把钉选请求吞掉 —— 接口返回 true，桌面一点动静都没有
+    // （用户实测：提示「已经放好了」，桌面还是空的）。
+    // 所以受理之后等一会儿，回头数一下桌面上到底有没有朝暮的组件。
     if (ok) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('已经放好了，回桌面就能看到')),
-      );
-      return;
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      final int placed = await _countPlaced();
+      if (!ctx.mounted) return;
+      if (placed > 0) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('已经放好了，回桌面就能看到')),
+        );
+        return;
+      }
+      // 系统答应了但没真加 —— 说明被 ROM 吞了，直接进兜底
     }
 
     // 钉不上：先试着直接把系统的「选择小部件」界面拉起来，三步变一步
@@ -698,6 +709,26 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 查一下现在桌面上到底有几个朝暮小组件。
+  /// 2026-11-05 加：用来验证「系统说受理了」是不是真的加上了。
+  static Future<int> _countPlaced() async {
+    try {
+      final Object? raw =
+          await const MethodChannel('com.xiayitian.chaomu/ringtone')
+              .invokeMethod<Object?>('widgetDiag');
+      if (raw is! Map) return 0;
+      final Object? ps = raw['providers'];
+      if (ps is! List) return 0;
+      int n = 0;
+      for (final dynamic e in ps) {
+        if (e is Map && e['placed'] is int) n += e['placed'] as int;
+      }
+      return n;
+    } catch (_) {
+      return 0;
+    }
   }
 
   /// 小组件自检：把系统看到的 provider 状态原样列出来。

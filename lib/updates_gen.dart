@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.14', '2026-11-05', <String>[
+    '「添加到桌面小组件」不再假报成功：加没加上会真的去数一遍',
+  ]),
   AppUpdate('2.27.13', '2026-11-05', <String>[
     '说明白小米上该去哪找：小部件列表最底部的「安卓小部件」那一栏',
   ]),
