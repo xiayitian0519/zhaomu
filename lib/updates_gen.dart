@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.5', '2026-11-05', <String>[
+    '小组件底改成半透明，壁纸能透出来；另加一个 4×4 大卡',
+  ]),
   AppUpdate('2.27.4', '2026-11-05', <String>[
     '设置页加「添加到桌面小组件」，一键钉到桌面；各品牌列表里也能认出朝暮了',
   ]),

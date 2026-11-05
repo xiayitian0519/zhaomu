@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  朝暮桌面小组件 · 4×4 大卡的元数据（2026-11-05 新增）。
+
+  和 4×2 那版是**两个独立的组件**，系统「添加小部件」列表里会各出现一条，
+  用户按自己想要的尺寸挑。这样比在 onAppWidgetOptionsChanged 里动态换布局
+  稳得多 —— 各家 ROM 对 options 变化的回调并不可靠。
+
+  minWidth/minHeight 都给 250dp：低版本按这个算格数（4×4 约 4 格宽），
+  Android 12+ 直接用 targetCellWidth/Height。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/widget_chaomu_big"
+    android:previewLayout="@layout/widget_preview"
+    android:minWidth="250dp"
+    android:minHeight="250dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="4"
+    android:updatePeriodMillis="1800000"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_desc_big" />

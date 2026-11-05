@@ -102,6 +102,20 @@
                 android:resource="@xml/widget_chaomu_info" />
         </receiver>
 
+        <!-- 桌面小组件 · 4×4 大卡（2026-11-05 新增）。
+             和上面那个是两个独立组件，系统列表里各占一条。 -->
+        <receiver
+            android:name=".ChaomuWidgetBig"
+            android:label="@string/widget_name_big"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_chaomu_big_info" />
+        </receiver>
+
         <!-- 小组件的列表数据源（2026-11-04）：让列表能上下滑动 -->
         <service
             android:name=".ChaomuWidgetService"

@@ -65,13 +65,8 @@ class ToggleReceiver : BroadcastReceiver() {
             return
         }
 
-        // 立刻刷小组件
-        val mgr = AppWidgetManager.getInstance(context)
-        val ids = mgr.getAppWidgetIds(ComponentName(context, ChaomuWidget::class.java))
-        for (wid in ids) {
-            mgr.notifyAppWidgetViewDataChanged(wid, R.id.widget_list)
-            mgr.updateAppWidget(wid, ChaomuWidget.buildView(context))
-        }
+        // 立刻刷小组件（4×2 和 4×4 大卡都要刷）
+        ChaomuWidget.refresh(context)
     }
 
     companion object {

@@ -5,4 +5,8 @@
     <!-- 2026-11-05：小组件在系统「添加小部件」列表里显示的名字。
          不写这个，三星/OPPO 那类 ROM 会显示成类名或者空白，用户认不出来。 -->
     <string name="widget_name">朝暮 · 今日待办</string>
+
+    <!-- 2026-11-05：4×4 大卡是独立的组件，列表里单独一条 -->
+    <string name="widget_name_big">朝暮 · 今日待办（大卡）</string>
+    <string name="widget_desc_big">4×4 大卡，一屏看全今天的待办</string>
 </resources>

@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 小组件的圆角白底（2026-11-04） -->
+<!--
+  小组件底板（2026-11-04 建，2026-11-05 改成半透明）。
+  白色 72% 不透明度：壁纸能透出来，深色壁纸上深色字也还看得清。
+  全透明试过，深色壁纸上文字直接糊掉，所以没走那条路。
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="#FFFFFF" />
+    <solid android:color="#B8FFFFFF" />
     <corners android:radius="16dp" />
     <stroke
         android:width="0.5dp"
-        android:color="#E2E6EE" />
+        android:color="#4DFFFFFF" />
 </shape>

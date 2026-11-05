@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  朝暮桌面小组件 · 4×4 大卡的布局（2026-11-05 新增）。
+
+  控件 id 和 4×2 那版完全一致（widget_head / widget_date / widget_count /
+  widget_list / widget_empty），所以 ChaomuWidget.buildView() 换个 layout 资源
+  就能直接用，不用再写一套数据逻辑。
+
+  区别只在：留白更大、字号大一号、列表能显示更多条。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:id="@+id/widget_head"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="2dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="朝暮"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="#1A1D26" />
+
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#6B7280" />
+
+        <TextView
+            android:id="@+id/widget_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#185FA5" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#8A91A0"
+        android:alpha="0.4" />
+
+    <ListView
+        android:id="@+id/widget_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:divider="#00000000"
+        android:dividerHeight="0dp"
+        android:layout_marginTop="6dp"
+        android:scrollbars="none" />
+
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="今天没有待办"
+        android:textSize="13sp"
+        android:textColor="#7A8290"
+        android:gravity="center"
+        android:visibility="gone" />
+
+</LinearLayout>

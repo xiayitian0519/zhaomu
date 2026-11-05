@@ -7,6 +7,31 @@
 3. **补丁**：只修 bug
 4. **构建号 `+N`**：每次打包递增，与次版本对齐（2.5.x → +5，2.6.x → +6）
 
+## 2.27.5+64 — 2026-11-05
+
+### 更新摘要
+
+- 小组件底改成半透明，壁纸能透出来；另加一个 4×4 大卡
+
+### 改动
+
+1. `res/drawable/widget_bg.xml`：纯白底 `#FFFFFF` → 白色 72% 半透明 `#B8FFFFFF`，
+   描边改白 50%。全透明试过不能用：深色壁纸上深色字直接糊掉，颜色只能设一套，
+   不可能深浅壁纸都兼顾。
+2. 新增 4×4 大卡，是一个**独立组件**（`ChaomuWidgetBig` + `widget_chaomu_big.xml`
+   + `widget_chaomu_big_info.xml`），系统「添加小部件」列表里单独一条。
+   没走 `onAppWidgetOptionsChanged` 动态换布局 —— 各家 ROM 那个回调不可靠。
+3. `ChaomuWidget.buildView()` 加 `layoutId` 参数，两个组件共用同一套数据逻辑。
+4. `ChaomuWidget.refresh()` 同时刷 4×2 和 4×4，点完成两边都变。
+5. 设置页「钉不上」的提示补一句：列表里有两条，今日待办 = 4×2，大卡 = 4×4。
+
+### 自检
+
+`aapt2 dump xmltree` 确认两个 provider 和 `widget_chaomu_big_info.xml` 都进了包；
+apk 里能看到 `res/layout/widget_chaomu_big.xml`。
+
+---
+
 ## 2.27.4+63 — 2026-11-05
 
 ### 更新摘要

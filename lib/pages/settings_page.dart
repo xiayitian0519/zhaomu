@@ -667,7 +667,8 @@ class SettingsPage extends StatelessWidget {
           '手动加一下，三步：\n\n'
           '1. 长按桌面空白处\n'
           '2. 点「添加小部件 / 小组件 / 窗口小工具」\n'
-          '3. 搜索或翻到「朝暮 · 今日待办」，长按拖到桌面',
+          '3. 搜索「朝暮」，列表里有两条：\n'
+          '    今日待办 = 4×2，今日待办（大卡） = 4×4',
           style: const TextStyle(fontSize: 13, height: 1.7),
         ),
         actions: <Widget>[

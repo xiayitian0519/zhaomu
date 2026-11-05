@@ -42,8 +42,11 @@ class ChaomuWidget : AppWidgetProvider() {
     companion object {
 
         /** 拼好一个 RemoteViews 外壳（列表内容是 Service 填的） */
-        fun buildView(context: Context): RemoteViews {
-            val rv = RemoteViews(context.packageName, R.layout.widget_chaomu)
+        fun buildView(
+            context: Context,
+            layoutId: Int = R.layout.widget_chaomu
+        ): RemoteViews {
+            val rv = RemoteViews(context.packageName, layoutId)
 
             // 点标题行 → 打开 App
             val launch = Intent(context, MainActivity::class.java).apply {
@@ -109,14 +112,30 @@ class ChaomuWidget : AppWidgetProvider() {
             return Pair(open, total)
         }
 
-        /** 让所有小组件立刻刷一次 */
+        /**
+         * 让所有小组件立刻刷一次。
+         *
+         * 2026-11-05：现在有两个组件（4×2 和 4×4 大卡），两个都要刷，
+         * 否则只加了大的那个的用户会看到数据不动。
+         */
         fun refresh(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
-            val ids = mgr.getAppWidgetIds(ComponentName(context, ChaomuWidget::class.java))
-            if (ids.isEmpty()) return
+            refreshOne(mgr, context, ChaomuWidget::class.java, R.layout.widget_chaomu)
+            refreshOne(
+                mgr, context, ChaomuWidgetBig::class.java, R.layout.widget_chaomu_big
+            )
+        }
+
+        private fun refreshOne(
+            mgr: AppWidgetManager,
+            context: Context,
+            cls: Class<*>,
+            layoutId: Int
+        ) {
+            val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
             for (id in ids) {
                 mgr.notifyAppWidgetViewDataChanged(id, R.id.widget_list)
-                mgr.updateAppWidget(id, buildView(context))
+                mgr.updateAppWidget(id, buildView(context, layoutId))
             }
         }
     }
