@@ -93,7 +93,7 @@
         <receiver
             android:name=".ChaomuWidget"
             android:label="@string/widget_name"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -107,7 +107,7 @@
         <receiver
             android:name=".ChaomuWidgetBig"
             android:label="@string/widget_name_big"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

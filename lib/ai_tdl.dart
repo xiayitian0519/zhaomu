@@ -120,7 +120,8 @@ class AiTdl {
         '   - 只说了哪天就写那天的 T00:00:00\n'
         '   - 「周五前」「月底前」这种最后期限，写那天的 T23:59:59\n'
         '   - 只有重复规律（每天/每周）没具体日期的，due 写 null\n'
-        '   - 原文没提时间的，due 必须写 null，不许拿今天凑数\n'
+        '   - **原文没提时间的，due 写今天的 T23:59:59（当今日待办收尾），'
+        '绝不许拿别的条目的时间凑**\n'
         '4. 优先级按四象限判断：red=重要且紧急，yellow=重要不紧急，'
         'blue=不重要但紧急，gray=都不算或判断不出\n'
         '5. 能看出重复规律的：daily / weekly / monthly / yearly，看不出写 none\n'
@@ -138,7 +139,11 @@ class AiTdl {
         '   - 完全没有时间 → remind 写 null\n'
         '9. 原文里除了动作之外的补充信息（带什么东西、找谁、金额、地址、注意事项），'
         '整理成一句话放 note；没有就写空字符串\n'
-        '10. 最多返回 100 条\n'
+        '10. 【最容易错的一条，务必看】时间只属于它所在的那一行。'
+        '如果原文是「7:30起床洗漱」下面再跟着好几行没有时间的（去校区、拍视频、做项目…），'
+        '那个 7:30 只属于「起床洗漱」这一条，后面每一行都**不许继承、不许补成同一个时间**。'
+        '只有当某一行自己写了时间，那一行才带时间\n'
+        '11. 最多返回 100 条\n'
         '\n'
         '示例（假设今天 2026-11-04 星期三）：\n'
         '- 「今晚九点提前五分钟提醒我参加仓库管理系统项目会议」→ {"title":"参加仓库管理系统项目会议",'
@@ -154,6 +159,13 @@ class AiTdl {
         '- 「明天下午三点开会，提前十分钟提醒我」→ {"title":"开会",'
         '"due":"2026-11-05T15:00:00","priority":"gray","repeat":"none",'
         '"remind":"2026-11-05T14:50:00","note":""}\n'
+        '- 「7:30起床整理内务洗漱（换行）去校区（换行）拍消防员视频」→ 三条：'
+        '{"title":"起床整理内务洗漱","due":"2026-11-04T07:30:00","priority":"gray",'
+        '"repeat":"none","remind":"2026-11-04T07:30:00","note":""}、'
+        '{"title":"去校区","due":"2026-11-04T23:59:59","priority":"gray",'
+        '"repeat":"none","remind":null,"note":""}、'
+        '{"title":"拍消防员视频","due":"2026-11-04T23:59:59","priority":"gray",'
+        '"repeat":"none","remind":null,"note":""}\n'
         '\n'
         '只输出 JSON 数组，不要任何解释文字、不要 markdown 代码块标记。\n'
         '格式：[{"title":"...","due":"2026-11-05T15:00:00","priority":"gray",'
@@ -226,7 +238,7 @@ class AiTdl {
       throw AiException('接口返回的东西看不懂，稍后再试。');
     }
 
-    final List<AiTodo> list = _parseContent(content);
+    final List<AiTodo> list = _parseContent(content, body);
     if (list.isEmpty) {
       throw AiException('这段文字里没找出能当待办的东西，再多写点？');
     }
@@ -238,7 +250,10 @@ class AiTdl {
   }
 
   /// 模型有时候会包 ```json 或者加前言，这里都兜住。
-  static List<AiTodo> _parseContent(String raw) {
+  ///
+  /// [input] 是用户原文，用来查「某个时刻在原文里到底出现了几次」——
+  /// 模型的经典毛病是把开头的「7:30」广播给后面所有没有时间的条目。
+  static List<AiTodo> _parseContent(String raw, String input) {
     String s = raw.trim();
     if (s.startsWith('```')) {
       final int firstNl = s.indexOf('\n');
@@ -276,9 +291,12 @@ class AiTdl {
 
       // 兜底：用户 2026-11-04 要求「没写什么时候提醒就准时提醒」。
       // AI 偶尔会漏填，这里补上：有精确时刻的截止时间、又没提醒 -> 就在截止那一刻提醒。
+      // 2026-11-05 补一条：23:59:59 表示「当日截止」，不是真的时刻，
+      // 给它补提醒等于半夜叫醒人，必须排除。
       if (remindAt == null &&
           dueAt != null &&
-          (dueAt.hour != 0 || dueAt.minute != 0)) {
+          (dueAt.hour != 0 || dueAt.minute != 0) &&
+          !(dueAt.hour == 23 && dueAt.minute >= 59)) {
         remindAt = dueAt;
       }
       out.add(AiTodo(
@@ -296,7 +314,57 @@ class AiTdl {
         note: nt.length > 200 ? nt.substring(0, 200) : nt,
       ));
     }
+
+    _fixBroadcast(out, input);
+
+    // 用户 2026-11-05 定的规矩：没写时间的，一律当「今日待办」，截止 23:59，不设提醒。
+    for (final AiTodo t in out) {
+      if (t.due == null) {
+        t.due = _todayEnd();
+        t.remind = null;
+      }
+    }
     return out;
+  }
+
+  /// 今天 23:59:59
+  static DateTime _todayEnd() {
+    final DateTime n = DateTime.now();
+    return DateTime(n.year, n.month, n.day, 23, 59, 59);
+  }
+
+  /// 把「一处时间被复制到所有条目」这种错改回来。
+  ///
+  /// 判据：原文里某个 HH:MM 只出现了一次，但结果里有多条用了同一个时刻
+  /// -> 说明是串味了，第一条留着，其余退回当日截止 + 不提醒。
+  /// 只认这一种情况，别的时间一律不动，避免误伤「真的有好几条同一时间」。
+  static void _fixBroadcast(List<AiTodo> todos, String input) {
+    if (todos.length < 2) return;
+
+    final Map<String, int> inText = <String, int>{};
+    final RegExp re = RegExp(r'(\d{1,2})\s*[:：]\s*(\d{2})');
+    for (final RegExpMatch m in re.allMatches(input)) {
+      final int h = int.tryParse(m.group(1) ?? '') ?? -1;
+      final int mi = int.tryParse(m.group(2) ?? '') ?? -1;
+      if (h < 0 || h > 23 || mi < 0 || mi > 59) continue;
+      final String k = '$h:${mi.toString().padLeft(2, '0')}';
+      inText[k] = (inText[k] ?? 0) + 1;
+    }
+    if (inText.isEmpty) return;
+
+    final Map<String, int> used = <String, int>{};
+    for (final AiTodo t in todos) {
+      final DateTime? d = t.due;
+      if (d == null) continue;
+      if (d.hour == 0 && d.minute == 0) continue;
+      final String k = '${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+      final int seen = (used[k] ?? 0) + 1;
+      used[k] = seen;
+      if ((inText[k] ?? 0) <= 1 && seen > 1) {
+        t.due = _todayEnd();
+        t.remind = null;
+      }
+    }
   }
 
   static DateTime? _parseIso(String s) {

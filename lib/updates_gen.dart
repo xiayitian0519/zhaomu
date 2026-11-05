@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.6', '2026-11-05', <String>[
+    '修 AI 导入把一行的「7:30」复制给所有条目；修桌面「添加小部件」里找不到朝暮',
+  ]),
   AppUpdate('2.27.5', '2026-11-05', <String>[
     '小组件底改成半透明，壁纸能透出来；另加一个 4×4 大卡',
   ]),
