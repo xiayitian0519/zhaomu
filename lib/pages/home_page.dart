@@ -36,9 +36,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     // 版本号变了 → 首次打开弹一次更新内容（见 updates.dart）
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      maybeShowUpdateDialog(context);
+      await maybeShowUpdateDialog(context);
+      if (!mounted) return;
+      // 再看一眼远端有没有新版本（一天最多提醒一次）
+      await maybeCheckRemoteUpdate(context);
+      if (!mounted) return;
       _maybeStartGuide();
     });
     // 打开自动定位到「今天」卡片，省掉往下滑（2026-10-18 用户和陈栋聊定）

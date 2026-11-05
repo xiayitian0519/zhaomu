@@ -5,6 +5,11 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.7', '2026-11-05', <String>[
+    '打开朝暮会自动看一眼有没有新版本，有的话弹窗告诉你',
+    '隔了好几个版本才更新时，弹窗里会把中间每一版改了什么一次列全',
+    '更新说明改成说人话，不再出现文件名、代码术语',
+  ]),
   AppUpdate('2.27.6', '2026-11-05', <String>[
     '修 AI 导入把一行的「7:30」复制给所有条目；修桌面「添加小部件」里找不到朝暮',
   ]),

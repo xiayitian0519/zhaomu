@@ -4,6 +4,8 @@ import 'app_state.dart';
 import 'notifier.dart';
 import 'update_log_page.dart';
 import 'update_model.dart';
+import 'update_notes.dart';
+import 'updater.dart';
 import 'updates_gen.dart';
 
 /// 更新内容（内置数据）。
@@ -59,6 +61,174 @@ Future<void> maybeShowUpdateDialog(BuildContext context) async {
 }
 
 String _main(String v) => v.split('+').first.trim();
+
+/// 进首页后静默问一次远端：有没有比现在新的版本。
+///
+/// 2026-11-05 用户要求：当天首次进 App 就自动查，有新版就弹出来，
+/// 写清楚「更新日期 / 版本号 / 这中间每一版改了什么（人话）」。
+/// 一天只弹一次，同一天再进来不打扰。
+Future<void> maybeCheckRemoteUpdate(BuildContext context) async {
+  final AppState st = AppState.I;
+  final String raw = await Notifier.I.appVersion();
+  final String cur = _main(raw);
+  if (cur.isEmpty) return;
+
+  final UpdateInfo? info = await Updater.check(current: cur);
+  if (info == null) return;
+  if (!Updater.isNewer(cur, info.latest)) return;
+
+  final DateTime now = DateTime.now();
+  final String today = '${now.year}-'
+      '${now.month.toString().padLeft(2, '0')}-'
+      '${now.day.toString().padLeft(2, '0')}';
+  if (st.lastPromptDay == today) return;
+  if (!context.mounted) return;
+
+  final List<AppUpdate> between = updatesBetween(cur, info.latest);
+  final String? action = await showDialog<String>(
+    context: context,
+    builder: (BuildContext c) => _NewVersionDialog(
+      current: cur,
+      latest: info.latest,
+      between: between,
+      fallback: info.notes,
+    ),
+  );
+  await st.setLastPromptDay(today);
+  if (action == 'go') {
+    await Updater.openPage(info.pageUrl);
+  }
+}
+
+/// 「发现新版本」：把从当前版本到最新版本之间的每一版都列出来。
+///
+/// 跨了好几个版本时，只看最新一版是不够的 —— 用户想知道中间都改了什么。
+class _NewVersionDialog extends StatelessWidget {
+  const _NewVersionDialog({
+    required this.current,
+    required this.latest,
+    required this.between,
+    required this.fallback,
+  });
+
+  final String current;
+  final String latest;
+  final List<AppUpdate> between;
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context) {
+    final String date = between.isNotEmpty ? between.first.date : '';
+    final int n = between.length;
+
+    return AlertDialog(
+      title: Row(
+        children: <Widget>[
+          const Text('发现新版本', style: TextStyle(fontSize: 16)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF0FF),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Text(
+              latest,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF185FA5)),
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400, maxHeight: 420),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (date.isNotEmpty)
+                Text(
+                  '${shortDate(date)} 发布',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF9A9A9A)),
+                ),
+              const SizedBox(height: 4),
+              Text(
+                n > 1
+                    ? '你现在是 $current，中间跨了 $n 个版本'
+                    : '你现在是 $current',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF7A8290)),
+              ),
+              const SizedBox(height: 12),
+              if (between.isEmpty)
+                Text(
+                  fallback.isEmpty ? '这一版没写详细说明。' : fallback,
+                  style: const TextStyle(fontSize: 13, height: 1.6),
+                )
+              else
+                for (int i = 0; i < between.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        between[i].version,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF185FA5),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        shortDate(between[i].date),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9A9A9A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  for (final String it in userFacing(between[i].items))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text(
+                            '·  ',
+                            style: TextStyle(fontSize: 13, height: 1.55),
+                          ),
+                          Expanded(
+                            child: Text(
+                              it,
+                              style: const TextStyle(fontSize: 13, height: 1.55),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop('later'),
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFF8A91A0)),
+          child: const Text('稍后再说'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop('go'),
+          style:
+              FilledButton.styleFrom(backgroundColor: const Color(0xFF185FA5)),
+          child: const Text('去更新'),
+        ),
+      ],
+    );
+  }
+}
 
 class _UpdateDialog extends StatelessWidget {
   const _UpdateDialog({required this.update, required this.version});

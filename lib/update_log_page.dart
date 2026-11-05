@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'notifier.dart';
 import 'update_model.dart';
+import 'update_notes.dart';
 import 'updates_gen.dart';
 
 /// 设置 → 关于朝暮 → 更新日志：按版本倒序，一版一张卡。
@@ -78,11 +79,11 @@ class UpdateLogPage extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      for (int i = 0; i < u.items.length; i++)
+                      for (final String it in userFacing(u.items))
                         Padding(
                           padding: const EdgeInsets.only(bottom: 3),
                           child: Text(
-                            '${i + 1}. ${u.items[i]}',
+                            '· $it',
                             style: const TextStyle(fontSize: 12.5, height: 1.6),
                           ),
                         ),

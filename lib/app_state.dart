@@ -148,6 +148,10 @@ class AppState extends ChangeNotifier {
   /// 和当前版本不一致 → 首次打开弹一次更新内容（见 updates.dart）。
   String lastSeenVersion = '';
 
+  /// 上次弹出「发现新版本」的日期（'2026-11-05'）。
+  /// 2026-11-05 新增：远端检查一天最多提醒一次，免得每次进 App 都糊一脸。
+  String lastPromptDay = '';
+
   /// 日历页：下面的「当日待办」列表有没有折叠起来。
   ///
   /// 折叠时那块区域收掉，日历格子就能撑高、每格多显示几行待办。
@@ -262,6 +266,9 @@ class AppState extends ChangeNotifier {
     if (m['lastSeenVersion'] is String) {
       lastSeenVersion = m['lastSeenVersion'] as String;
     }
+    if (m['lastPromptDay'] is String) {
+      lastPromptDay = m['lastPromptDay'] as String;
+    }
     if (m['dayStartHour'] is num) {
       final int v = (m['dayStartHour'] as num).toInt();
       dayStartHour = v < 0 ? 0 : (v > 23 ? 23 : v);
@@ -305,6 +312,7 @@ class AppState extends ChangeNotifier {
         'calendarListCollapsed': calendarListCollapsed,
         'overdueCollapsed': overdueCollapsed,
         'lastSeenVersion': lastSeenVersion,
+        'lastPromptDay': lastPromptDay,
         'remindOnMigrated': remindOnMigrated,
         'historyMode': historyMode,
         'historyMonths': historyMonths.toList(),
@@ -793,6 +801,12 @@ class AppState extends ChangeNotifier {
   /// 记下「这个版本的更新弹窗已经看过了」
   Future<void> setLastSeenVersion(String v) async {
     lastSeenVersion = v;
+    await save();
+  }
+
+  /// 记下「今天已经提醒过有新版本了」
+  Future<void> setLastPromptDay(String d) async {
+    lastPromptDay = d;
     await save();
   }
 
