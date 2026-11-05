@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.13', '2026-11-05', <String>[
+    '说明白小米上该去哪找：小部件列表最底部的「安卓小部件」那一栏',
+  ]),
   AppUpdate('2.27.12', '2026-11-05', <String>[
     '装包报「解析软件包时出现问题 (33)」修好了：下完先验完整性，坏包自动重下',
     '每次打开朝暮都会检查更新，不再一天只提醒一次',

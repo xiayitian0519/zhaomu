@@ -682,11 +682,12 @@ class SettingsPage extends StatelessWidget {
         title: const Text('这台手机不让一键添加'),
         content: Text(
           '${supported ? '系统没接受这次请求。' : '这个系统版本不支持一键添加。'}'
-          '手动加一下，三步：\n\n'
-          '1. 长按桌面空白处\n'
-          '2. 点「添加小部件 / 小组件 / 窗口小工具」\n'
-          '3. 搜索「朝暮」，列表里有两条：\n'
-          '    今日待办 = 4×2，今日待办（大卡） = 4×4',
+          '手动加一下：\n\n'
+          '1. 长按桌面空白处 → 点「添加小工具」\n'
+          '2. 右上角搜索「朝暮」\n'
+          '3. 找不到就滑到列表最底部，点「安卓小部件」→ 朝暮\n\n'
+          '小米把小组件分两类：上面那份「支持小部件应用」是小米自家的，\n'
+          '只收白名单里的应用；朝暮是标准安卓组件，在「安卓小部件」里。',
           style: const TextStyle(fontSize: 13, height: 1.7),
         ),
         actions: <Widget>[
@@ -748,8 +749,9 @@ class SettingsPage extends StatelessWidget {
       sb.writeln('');
       if (placed == 0) {
         sb.writeln('结论：组件本身没问题，只是还没放到桌面。');
-        sb.writeln('回桌面双指捏合 → 「添加小工具」→ 顶部搜索「朝暮」；');
-        sb.writeln('滑列表也行，朝暮按拼音 C 排，靠前。');
+        sb.writeln('找法：桌面双指捏合 → 添加小工具 → 搜索「朝暮」；');
+        sb.writeln('搜不到就滑到最底部点「安卓小部件」，朝暮在那一栏里。');
+        sb.writeln('（上面那份「支持小部件应用」是小米白名单，标准安卓组件不进那里。）');
       } else {
         sb.writeln('结论：桌面上已经有 $placed 个朝暮小组件了。');
       }
