@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.3', '2026-11-05', <String>[
+    '修 App 内下载完点安装报「解析软件包时出现问题 (11) / open failed: ENOENT」',
+  ]),
   AppUpdate('2.27.2', '2026-11-04', <String>[
     '检查更新改走国内源（Gitee），下载从 20 KB/s 提到 1.6 MB/s，24.6 MB 的包 15 秒下完',
   ]),

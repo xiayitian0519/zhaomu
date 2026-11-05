@@ -7,6 +7,38 @@
 3. **补丁**：只修 bug
 4. **构建号 `+N`**：每次打包递增，与次版本对齐（2.5.x → +5，2.6.x → +6）
 
+## 2.27.3+62 — 2026-11-05
+
+### 更新摘要
+
+- 修 App 内下载完点安装报「解析软件包时出现问题 (11) / open failed: ENOENT」
+
+### 问题
+
+`Updater.install()` 拼 FileProvider 地址时只取了文件名：
+
+    content://<包名>.fileprovider/downloads/chaomu-2.27.2.apk
+
+但文件实际在 `.../files/chaomu_updates/chaomu-2.27.2.apk`，少了一层
+`chaomu_updates/`，FileProvider 换算出来的路径不存在，安装器直接报
+`open failed: ENOENT (No such file or directory)`。这是这个功能第一次
+真被跑到（之前几次更新都是从电脑拷包手动装），所以一直没暴露。
+
+### 改动
+
+1. `lib/updater.dart` 新增 `_contentUri()`：按文件真实路径算相对位置，
+   落在 `/files/` 下的走 `downloads` 前缀（对应 `external-files-path`），
+   落在 `/cache/` 下的走 `cache` 前缀（对应 `cache-path`），
+   算不出来就返回 null，不再瞎拼。
+2. 路径逐段 `Uri.encodeComponent`，不再整体编码（整体编码会把 `/` 编成
+   `%2F`，照样找不到文件）。
+
+### 自检
+
+`tool/check_content_uri.dart` 跑了 5 个样本路径，目录层数不同都换算正确。
+
+---
+
 ## 2.27.2+61 — 2026-11-04
 
 ### 更新摘要

@@ -360,13 +360,41 @@ class Updater {
     return UpdateFile(file: newFile, bytes: await newFile.length(), wasPatch: false);
   }
 
+  /// 把真实文件路径换算成 FileProvider 的 content:// 地址。
+  ///
+  /// 坑（2026-11-05 在手机上炸出来的）：原来只取文件名，拼成
+  /// `downloads/chaomu-2.27.2.apk`，但文件实际躺在
+  /// `files/chaomu_updates/chaomu-2.27.2.apk`，少了一层目录，
+  /// 安装器就打不开 -> `open failed: ENOENT (No such file or directory)`。
+  /// 现在按文件真实位置算相对路径，中间有几层目录都不会错。
+  static String? _contentUri(File f) {
+    String p = f.absolute.path.replaceAll('\\', '/');
+    final String prefix;
+    final int i = p.indexOf('/files/');
+    if (i >= 0) {
+      prefix = 'downloads';
+      p = p.substring(i + 7);
+    } else {
+      final int c = p.indexOf('/cache/');
+      if (c < 0) return null;
+      prefix = 'cache';
+      p = p.substring(c + 7);
+    }
+    final String rel = p
+        .split('/')
+        .where((String s) => s.isNotEmpty)
+        .map(Uri.encodeComponent)
+        .join('/');
+    if (rel.isEmpty) return null;
+    return 'content://$_authority/$prefix/$rel';
+  }
+
   /// 打开安装（安卓）/ 定位文件（电脑）。
   static Future<bool> install(File f) async {
     try {
       if (Platform.isAndroid) {
-        final String name = f.uri.pathSegments.last;
-        final String uri =
-            'content://$_authority/downloads/${Uri.encodeComponent(name)}';
+        final String? uri = _contentUri(f);
+        if (uri == null) return false;
         final AndroidIntent intent = AndroidIntent(
           action: 'action_view',
           data: uri,
