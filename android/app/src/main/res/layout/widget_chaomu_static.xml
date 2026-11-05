@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  朝暮桌面小组件 · 静态版布局（2026-11-05）。
+
+  为什么不用 ListView：小米上集合型组件（ListView + RemoteViewsService）
+  反复显示「载入窗口小部件时出现问题」，alpha / exported / URI 唯一化都试过，
+  没根治。静态行不依赖任何跨进程绑定，updateAppWidget 一次填完，最稳。
+  代价：不能上下滑，只显示前 5 条。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="10dp">
+
+    <LinearLayout
+        android:id="@+id/widget_head"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="朝暮"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#1A1D26" />
+
+        <TextView
+            android:id="@+id/widget_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text=""
+            android:textSize="11sp"
+            android:textColor="#6B7280" />
+
+        <TextView
+            android:id="@+id/widget_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="11sp"
+            android:textColor="#185FA5" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#668A91A0" />
+
+    <LinearLayout
+        android:id="@+id/row1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/row1_bar"
+            android:layout_width="3dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="7dp"
+            android:background="#5A6270" />
+
+        <ImageView
+            android:id="@+id/row1_check"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="7dp"
+            android:src="@android:drawable/checkbox_off_background" />
+
+        <TextView
+            android:id="@+id/row1_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#2C2F38" />
+
+        <TextView
+            android:id="@+id/row1_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text=""
+            android:textSize="10sp"
+            android:textColor="#949CAA" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/row2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/row2_bar"
+            android:layout_width="3dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="7dp"
+            android:background="#5A6270" />
+
+        <ImageView
+            android:id="@+id/row2_check"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="7dp"
+            android:src="@android:drawable/checkbox_off_background" />
+
+        <TextView
+            android:id="@+id/row2_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#2C2F38" />
+
+        <TextView
+            android:id="@+id/row2_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text=""
+            android:textSize="10sp"
+            android:textColor="#949CAA" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/row3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/row3_bar"
+            android:layout_width="3dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="7dp"
+            android:background="#5A6270" />
+
+        <ImageView
+            android:id="@+id/row3_check"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="7dp"
+            android:src="@android:drawable/checkbox_off_background" />
+
+        <TextView
+            android:id="@+id/row3_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#2C2F38" />
+
+        <TextView
+            android:id="@+id/row3_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text=""
+            android:textSize="10sp"
+            android:textColor="#949CAA" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/row4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/row4_bar"
+            android:layout_width="3dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="7dp"
+            android:background="#5A6270" />
+
+        <ImageView
+            android:id="@+id/row4_check"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="7dp"
+            android:src="@android:drawable/checkbox_off_background" />
+
+        <TextView
+            android:id="@+id/row4_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#2C2F38" />
+
+        <TextView
+            android:id="@+id/row4_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text=""
+            android:textSize="10sp"
+            android:textColor="#949CAA" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/row5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/row5_bar"
+            android:layout_width="3dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="7dp"
+            android:background="#5A6270" />
+
+        <ImageView
+            android:id="@+id/row5_check"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginEnd="7dp"
+            android:src="@android:drawable/checkbox_off_background" />
+
+        <TextView
+            android:id="@+id/row5_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="#2C2F38" />
+
+        <TextView
+            android:id="@+id/row5_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text=""
+            android:textSize="10sp"
+            android:textColor="#949CAA" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:text="今天没有待办"
+        android:textSize="12sp"
+        android:textColor="#7A8290"
+        android:gravity="center"
+        android:visibility="gone" />
+
+</LinearLayout>

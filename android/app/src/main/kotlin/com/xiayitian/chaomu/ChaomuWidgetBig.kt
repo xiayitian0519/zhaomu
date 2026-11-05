@@ -24,7 +24,7 @@ class ChaomuWidgetBig : AppWidgetProvider() {
         for (id in appWidgetIds) {
             appWidgetManager.updateAppWidget(
                 id,
-                ChaomuWidget.buildView(context, R.layout.widget_chaomu_big)
+                ChaomuWidget.buildView(context)
             )
         }
     }

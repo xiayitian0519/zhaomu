@@ -731,6 +731,60 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
+  /// 通知渠道自检（2026-11-05）。
+  ///
+  /// 用户报「关掉铃声再打开，横幅震动铃声全没了」—— 直接列系统里那几条渠道的
+  /// 真实状态：还在不在、声音是什么、应用通知总开关有没有被关。
+  static Future<void> _channelDiag(BuildContext ctx) async {
+    final List<Map<String, String>> rows =
+        await Notifier.I.channelDiag();
+    if (!ctx.mounted) return;
+
+    final StringBuffer sb = StringBuffer();
+    if (rows.isEmpty) {
+      sb.writeln('读不到渠道信息（可能不是安卓，或者插件不支持）。');
+    } else {
+      for (final Map<String, String> r in rows) {
+        sb.writeln('· ${r['name']}');
+        if ((r['id'] ?? '').isNotEmpty && r['id'] != '(总开关)') {
+          sb.writeln('   id ${r['id']}');
+        }
+        if ((r['importance'] ?? '').isNotEmpty) {
+          sb.writeln('   重要性 ${r['importance']}');
+        }
+        if ((r['sound'] ?? '').isNotEmpty) {
+          sb.writeln('   声音 ${r['sound']}｜出声 ${r['playSound']}');
+        }
+        sb.writeln('');
+      }
+      sb.writeln('正常应该是：');
+      sb.writeln('· 待办提醒 —— 声音 sound_cheerful，出声 是');
+      sb.writeln('· 待办提醒（静音） —— 声音 (无)，出声 否');
+    }
+
+    await showDialog<void>(
+      context: ctx,
+      builder: (BuildContext c) => AlertDialog(
+        title: const Text('通知渠道自检'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420, maxHeight: 440),
+          child: SingleChildScrollView(
+            child: SelectableText(
+              sb.toString(),
+              style: const TextStyle(fontSize: 12.5, height: 1.6),
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 小组件自检：把系统看到的 provider 状态原样列出来。
   ///
   /// 2026-11-05 加。用户反馈「桌面里找不到朝暮」，光靠猜定位不了，
@@ -1038,6 +1092,16 @@ class SettingsPage extends StatelessWidget {
                     ),
                     trailing: const Icon(Icons.chevron_right, size: 18),
                     onTap: () => _openPermissionCenter(context),
+                  ),
+                if (!Platform.isWindows)
+                  ListTile(
+                    title: const Text('通知自检', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text(
+                      '看系统里朝暮的通知渠道还在不在、有没有声音',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => _channelDiag(context),
                   ),
                 ListTile(
                   title: const Text('提醒方式', style: TextStyle(fontSize: 14)),

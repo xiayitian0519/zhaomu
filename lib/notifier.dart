@@ -94,8 +94,8 @@ class Notifier {
   /// 为什么不能只改单条通知的 playSound：**渠道自带声音时优先级最高**，
   /// 通知里的 playSound:false 会被直接忽略 —— 用户关掉「默认打开铃声」
   /// 之后照样响，就是这个原因。
-  static const String _channelId = 'chaomu_remind_v11';
-  static const String _channelSilentId = 'chaomu_remind_v11_silent';
+  static const String _channelId = 'chaomu_remind_v12';
+  static const String _channelSilentId = 'chaomu_remind_v12_silent';
 
   /// 渠道的默认铃声。这个 id 必须和 res/raw 里的文件名一致。
   /// ⚠️ 渠道声音一旦创建就固化，换这个值必须同时升 [_channelId]。
@@ -250,18 +250,13 @@ class Notifier {
           .resolvePlatformSpecificImplementation<fln.AndroidFlutterLocalNotificationsPlugin>();
       if (a == null) return;
 
-      // 1. 先清理所有历史渠道
+      // 2026-11-05 教训：**不要删用户正在用的渠道**。
+      // 上一版把 chaomu_remind_v10 加进了删除列表，结果 MIUI 把整个应用的通知
+      // 降级了 —— 用户反馈「关闭再打开铃声后横幅、震动、铃声全都没了」。
+      // 现在只删我们自己刚建坏的那两条（v11 系），其它一律不动。
       for (final String old in <String>[
-        'chaomu_remind',
-        'chaomu_remind_v2',
-        'chaomu_remind_v3',
-        'chaomu_remind_v4',
-        'chaomu_remind_v5',
-        'chaomu_remind_v6',
-        'chaomu_remind_v7',
-        'chaomu_remind_v8',
-        'chaomu_remind_v9',
-        'chaomu_remind_v10',
+        'chaomu_remind_v11',
+        'chaomu_remind_v11_silent',
       ]) {
         try {
           await a.deleteNotificationChannel(old);
@@ -308,6 +303,44 @@ class Notifier {
         ),
       );
     } catch (_) {}
+  }
+
+  /// 列出系统里朝暮的所有通知渠道，给「通知自检」用（2026-11-05 加）。
+  ///
+  /// 用户报「关掉铃声再打开，横幅震动铃声全都没了」，光看代码定位不了 ——
+  /// 得看系统里那几条渠道现在是什么状态：还在不在、声音是什么、有没有被屏蔽。
+  Future<List<Map<String, String>>> channelDiag() async {
+    final List<Map<String, String>> out = <Map<String, String>>[];
+    if (!Platform.isAndroid) return out;
+    try {
+      await init();
+      final fln.AndroidFlutterLocalNotificationsPlugin? a = _plugin
+          .resolvePlatformSpecificImplementation<fln.AndroidFlutterLocalNotificationsPlugin>();
+      if (a == null) return out;
+      final bool? enabled = await a.areNotificationsEnabled();
+      out.add(<String, String>{
+        'id': '(总开关)',
+        'name': '应用通知权限',
+        'importance': enabled == true ? '开着' : '**被系统关了**',
+        'sound': '',
+        'playSound': '',
+      });
+      final List<fln.AndroidNotificationChannel>? list =
+          await a.getNotificationChannels();
+      for (final fln.AndroidNotificationChannel c in list ?? <fln.AndroidNotificationChannel>[]) {
+        final String snd = c.sound?.sound ?? '';
+        out.add(<String, String>{
+          'id': c.id,
+          'name': c.name,
+          'importance': c.importance.name,
+          'sound': snd.isEmpty ? '(无)' : snd,
+          'playSound': c.playSound ? '是' : '否',
+        });
+      }
+    } catch (e) {
+      out.add(<String, String>{'id': '(出错)', 'name': '$e', 'importance': '', 'sound': '', 'playSound': ''});
+    }
+    return out;
   }
 
   /// 申请通知权限（Android 13+ / iOS）

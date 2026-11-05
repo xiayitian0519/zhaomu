@@ -7,7 +7,7 @@
   小米/红米上这个定时刷新经常被省电策略掐掉，用户要去系统设置放行。
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:initialLayout="@layout/widget_chaomu"
+    android:initialLayout="@layout/widget_chaomu_static"
     android:previewLayout="@layout/widget_preview"
     android:minWidth="250dp"
     android:minHeight="110dp"
