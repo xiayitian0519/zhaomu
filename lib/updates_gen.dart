@@ -5,6 +5,11 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.15', '2026-11-05', <String>[
+    '修桌面上小组件显示「载入窗口小部件时出现问题」',
+    '关掉「默认打开铃声」后还在响：改成切到一条无声渠道',
+    '自检里能看到组件渲染失败的具体原因了',
+  ]),
   AppUpdate('2.27.14', '2026-11-05', <String>[
     '「添加到桌面小组件」不再假报成功：加没加上会真的去数一遍',
   ]),

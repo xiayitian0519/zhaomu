@@ -123,10 +123,14 @@
         </receiver>
 
         <!-- 小组件的列表数据源（2026-11-04）：让列表能上下滑动 -->
+        <!-- 2026-11-05：exported 改成 true。集合型小组件的列表数据源要由系统
+             （system_server）跨进程绑定，exported=false 在部分 ROM 上会被拒，
+             整块组件就显示「载入窗口小部件时出现问题」。
+             安全上没放宽：BIND_REMOTEVIEWS 是系统级签名权限，只有系统绑得进来。 -->
         <service
             android:name=".ChaomuWidgetService"
             android:permission="android.permission.BIND_REMOTEVIEWS"
-            android:exported="false" />
+            android:exported="true" />
 
         <!-- 小组件里点一条待办 -> 切换完成 / 撤回（2026-11-04） -->
         <receiver

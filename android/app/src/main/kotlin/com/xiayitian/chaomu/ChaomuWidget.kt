@@ -46,6 +46,7 @@ class ChaomuWidget : AppWidgetProvider() {
             context: Context,
             layoutId: Int = R.layout.widget_chaomu
         ): RemoteViews {
+          try {
             val rv = RemoteViews(context.packageName, layoutId)
 
             // 点标题行 → 打开 App
@@ -66,7 +67,9 @@ class ChaomuWidget : AppWidgetProvider() {
 
             // 绑列表数据源
             val svcIntent = Intent(context, ChaomuWidgetService::class.java).apply {
-                data = Uri.parse("chaomu://widget/list")
+                // 带上布局 id 让 4×2 和 4×4 各有独立的 adapter 标识，
+                // 免得系统把两个组件的数据源当成同一个（2026-11-05）
+                data = Uri.parse("chaomu://widget/list/$layoutId")
             }
             rv.setRemoteAdapter(R.id.widget_list, svcIntent)
 
@@ -74,6 +77,19 @@ class ChaomuWidget : AppWidgetProvider() {
             rv.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
             return rv
+          } catch (t: Throwable) {
+            // 2026-11-05：桌面显示「载入窗口小部件时出现问题」时，
+            // 把真实堆栈写到私有目录，App 里的「小组件自检」能读出来。
+            try {
+                val f = File(context.filesDir, "widget_error.txt")
+                f.writeText(
+                    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()) +
+                        "\n" + android.util.Log.getStackTraceString(t)
+                )
+            } catch (_: Throwable) {
+            }
+            throw t
+          }
         }
 
         /** 返回 (未完成条数, 总条数) */

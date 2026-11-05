@@ -767,6 +767,12 @@ class SettingsPage extends StatelessWidget {
       sb.writeln('');
       sb.writeln('查询报错：${m['queryError']}');
     }
+    final String we = (m['widgetError'] ?? '').toString();
+    if (we.isNotEmpty) {
+      sb.writeln('');
+      sb.writeln('上次组件渲染失败的原因：');
+      sb.writeln(we);
+    }
     if (ps.isEmpty) {
       sb.writeln('');
       sb.writeln('系统一个都查不到 —— 说明系统没把朝暮当小组件，');

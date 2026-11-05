@@ -51,11 +51,13 @@
             android:textColor="#185FA5" />
     </LinearLayout>
 
+    <!-- 2026-11-05：原来这里是 background + android:alpha="0.4"，
+         RemoteViews 在部分 ROM 上对 alpha 支持不好，会导致整个组件
+         显示「载入窗口小部件时出现问题」。改成直接把透明度写进颜色。 -->
     <View
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
-        android:background="#8A91A0"
-        android:alpha="0.4" />
+        android:background="#668A91A0" />
 
     <ListView
         android:id="@+id/widget_list"

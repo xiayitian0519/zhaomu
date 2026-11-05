@@ -88,7 +88,14 @@ class Notifier {
   ///        这是实测出来的：系统「待办提醒 → 声音」里写着「无」。
   ///        v10 建渠道时就钉死一个默认铃声（俏皮成功），保证开箱有声音；
   ///        用户想换，让他去系统那个「声音」页挑 —— 那页面里能看到我们注册进去的 7 个。
-  static const String _channelId = 'chaomu_remind_v10';
+  /// 2026-11-05 起用两条渠道，靠切渠道实现「关掉铃声」：
+  ///   - [_channelSound]   带默认铃声
+  ///   - [_channelSilent]  完全不带声音
+  /// 为什么不能只改单条通知的 playSound：**渠道自带声音时优先级最高**，
+  /// 通知里的 playSound:false 会被直接忽略 —— 用户关掉「默认打开铃声」
+  /// 之后照样响，就是这个原因。
+  static const String _channelId = 'chaomu_remind_v11';
+  static const String _channelSilentId = 'chaomu_remind_v11_silent';
 
   /// 渠道的默认铃声。这个 id 必须和 res/raw 里的文件名一致。
   /// ⚠️ 渠道声音一旦创建就固化，换这个值必须同时升 [_channelId]。
@@ -254,6 +261,7 @@ class Notifier {
         'chaomu_remind_v7',
         'chaomu_remind_v8',
         'chaomu_remind_v9',
+        'chaomu_remind_v10',
       ]) {
         try {
           await a.deleteNotificationChannel(old);
@@ -279,6 +287,23 @@ class Notifier {
           // 穿透「免打扰」。漏了这个，开了 DND 的机型就是一声不响
           bypassDnd: true,
           // 通知音走 notification 音频流。用 alarm 流会静默无声且不报错。
+          audioAttributesUsage: fln.AudioAttributesUsage.notification,
+        ),
+      );
+
+      // 无声渠道：不给 sound，只留震动。
+      // 名字带「静音」是为了让用户在系统通知列表里能分清这两条。
+      await a.createNotificationChannel(
+        fln.AndroidNotificationChannel(
+          _channelSilentId,
+          '$_channelName（静音）',
+          description: '关掉「默认打开铃声」后走这条，只弹横幅和震动',
+          importance: fln.Importance.max,
+          sound: null,
+          playSound: false,
+          enableVibration: true,
+          showBadge: true,
+          bypassDnd: true,
           audioAttributesUsage: fln.AudioAttributesUsage.notification,
         ),
       );
@@ -440,8 +465,10 @@ class Notifier {
     final bool ring = soundOn;
     return fln.NotificationDetails(
       android: fln.AndroidNotificationDetails(
-        _channelId,
-        _channelName,
+        // 关掉铃声时走无声渠道 —— 只把 playSound 设 false 没用，
+        // 渠道自带的声音优先级更高（2026-11-05）
+        ring ? _channelId : _channelSilentId,
+        ring ? _channelName : '$_channelName（静音）',
         channelDescription: _channelDesc,
         importance: fln.Importance.max,
         // 注意：fln.Priority 是通知优先级，不是朝暮自己的四象限 Priority
@@ -834,7 +861,11 @@ class Notifier {
     try {
       final bool? ok = await _ringChannel.invokeMethod<bool>(
         'openChannelSettings',
-        <String, dynamic>{'channelId': _channelId},
+        // 跟着当前开关走：关掉铃声后，用户点「去系统设置」应该落到静音那条，
+        // 否则他改的是一条没在用的渠道（2026-11-05）
+        <String, dynamic>{
+          'channelId': AppState.I.defaultRemindOn ? _channelId : _channelSilentId,
+        },
       );
       return ok ?? false;
     } catch (_) {
