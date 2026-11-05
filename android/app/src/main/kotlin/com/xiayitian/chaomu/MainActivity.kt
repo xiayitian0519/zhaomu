@@ -92,17 +92,25 @@ class MainActivity : FlutterActivity() {
      */
     private fun pinWidget(): Map<String, Any> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            lastPinNote = "系统低于 Android 8.0，没有这个接口"
             return mapOf("supported" to false, "ok" to false)
         }
         return try {
             val mgr = getSystemService(Context.APPWIDGET_SERVICE) as AppWidgetManager
             if (!mgr.isRequestPinAppWidgetSupported) {
+                lastPinNote = "系统说这台机器不支持钉桌面"
                 return mapOf("supported" to false, "ok" to false)
             }
             val provider = ComponentName(this, ChaomuWidget::class.java)
             val ok = mgr.requestPinAppWidget(provider, null, null)
+            lastPinNote = if (ok) {
+                "系统受理了（返回 true），但桌面没弹确认框的话就是被 ROM 吞了"
+            } else {
+                "系统直接拒绝（返回 false）"
+            }
             mapOf("supported" to true, "ok" to ok)
         } catch (e: Exception) {
+            lastPinNote = "调接口抛异常：$e"
             mapOf("supported" to false, "ok" to false)
         }
     }
@@ -197,6 +205,7 @@ class MainActivity : FlutterActivity() {
         out["sdk"] = android.os.Build.VERSION.SDK_INT
         out["brand"] = android.os.Build.MANUFACTURER
         out["model"] = android.os.Build.MODEL
+        out["lastPin"] = lastPinNote
         out["launcher"] = try {
             val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
             val r = pm.resolveActivity(i, PackageManager.MATCH_DEFAULT_ONLY)
@@ -392,5 +401,8 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "com.xiayitian.chaomu/ringtone"
+
+        /** 上一次「一键钉桌面」到底返回了什么，自检页要显示（2026-11-05 加） */
+        private var lastPinNote: String = "还没试过"
     }
 }

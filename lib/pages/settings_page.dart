@@ -720,6 +720,7 @@ class SettingsPage extends StatelessWidget {
     sb.writeln('系统版本 ${m['sdk'] ?? '?'} · ${m['brand'] ?? '?'} ${m['model'] ?? '?'}');
     sb.writeln('桌面启动器：${m['launcher'] ?? '?'}');
     sb.writeln('支持一键钉桌面：${m['pinSupported'] == true ? '是' : '否'}');
+    sb.writeln('上次点一键添加的结果：${m['lastPin'] ?? '还没试过'}');
     sb.writeln('系统里能查到的朝暮组件：${ps.length} 个');
     for (final dynamic e in ps) {
       if (e is! Map) continue;
@@ -738,6 +739,20 @@ class SettingsPage extends StatelessWidget {
       sb.writeln('');
       sb.writeln('系统一个都查不到 —— 说明系统没把朝暮当小组件，');
       sb.writeln('要么装的还是旧版本，要么 ROM 过滤了。');
+    } else {
+      final int placed = ps.fold<int>(
+        0,
+        (int a, dynamic e) =>
+            a + (e is Map && e['placed'] is int ? e['placed'] as int : 0),
+      );
+      sb.writeln('');
+      if (placed == 0) {
+        sb.writeln('结论：组件本身没问题，只是还没放到桌面。');
+        sb.writeln('回桌面双指捏合 → 「添加小工具」→ 顶部搜索「朝暮」；');
+        sb.writeln('滑列表也行，朝暮按拼音 C 排，靠前。');
+      } else {
+        sb.writeln('结论：桌面上已经有 $placed 个朝暮小组件了。');
+      }
     }
 
     await showDialog<void>(

@@ -28,6 +28,12 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
+    <!-- 桌面小组件（2026-11-05 补）：MIUI / HyperOS 的桌面在响应
+         requestPinAppWidget 之前会检查「创建桌面快捷方式」权限。
+         没这一行它会返回成功但桌面毫无反应，表现就是"点了没效果"。 -->
+    <uses-permission
+        android:name="com.android.launcher.permission.INSTALL_SHORTCUT"/>
+
     <application
         android:label="朝暮"
         android:name="${applicationName}"

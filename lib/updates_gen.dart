@@ -5,6 +5,10 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.11', '2026-11-05', <String>[
+    '小米上「添加到桌面小组件」点了没反应：补了桌面快捷方式权限',
+    '自检里多了「上次点一键添加到底返回了什么」',
+  ]),
   AppUpdate('2.27.10', '2026-11-05', <String>[
     '电脑版更新也能只下补丁了，14 MB 的包只下 3.6 MB',
   ]),
