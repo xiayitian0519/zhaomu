@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.4', '2026-11-05', <String>[
+    '设置页加「添加到桌面小组件」，一键钉到桌面；各品牌列表里也能认出朝暮了',
+  ]),
   AppUpdate('2.27.3', '2026-11-05', <String>[
     '修 App 内下载完点安装报「解析软件包时出现问题 (11) / open failed: ENOENT」',
   ]),

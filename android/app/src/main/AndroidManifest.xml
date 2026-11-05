@@ -88,8 +88,11 @@
         </receiver>
 
         <!-- 桌面小组件（2026-11-04 新增）：显示今天的待办 -->
+        <!-- 2026-11-05 补 android:label：各 ROM 的「添加小部件」列表里显示的名字，
+             不写的话三星/OPPO 那些会显示类名或空白。 -->
         <receiver
             android:name=".ChaomuWidget"
+            android:label="@string/widget_name"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

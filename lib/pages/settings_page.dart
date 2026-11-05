@@ -634,6 +634,52 @@ class SettingsPage extends StatelessWidget {
   /// 用户要求「点检查更新就能开始下载」，所以不再是跳网页：
   ///   安卓 —— 下 APK，交给系统安装器（FileProvider）
   ///   电脑 —— 下 zip，打开资源管理器定位
+  /// 一键把桌面小组件钉到桌面（2026-11-05）。
+  ///
+  /// 走原生 `requestPinAppWidget`。各家 ROM 的支持情况不一样：
+  /// 支持就直接弹系统的「添加」确认框，不支持就弹手动路径教一遍。
+  static Future<void> _pinWidget(BuildContext ctx) async {
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(ctx);
+    bool ok = false;
+    bool supported = false;
+    try {
+      final Object? r =
+          await const MethodChannel('com.xiayitian.chaomu/ringtone')
+              .invokeMethod<Object?>('pinWidget');
+      if (r is Map) {
+        supported = (r['supported'] as bool?) ?? false;
+        ok = (r['ok'] as bool?) ?? false;
+      }
+    } catch (_) {}
+    if (!ctx.mounted) return;
+    if (ok) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('已经放好了，回桌面就能看到')),
+      );
+      return;
+    }
+    await showDialog<void>(
+      context: ctx,
+      builder: (BuildContext c) => AlertDialog(
+        title: const Text('这台手机不让一键添加'),
+        content: Text(
+          '${supported ? '系统没接受这次请求。' : '这个系统版本不支持一键添加。'}'
+          '手动加一下，三步：\n\n'
+          '1. 长按桌面空白处\n'
+          '2. 点「添加小部件 / 小组件 / 窗口小工具」\n'
+          '3. 搜索或翻到「朝暮 · 今日待办」，长按拖到桌面',
+          style: const TextStyle(fontSize: 13, height: 1.7),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _checkUpdate(BuildContext ctx) async {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(ctx);
     messenger.showSnackBar(
@@ -906,6 +952,25 @@ class SettingsPage extends StatelessWidget {
                   onTap: () => _import(context),
                 ),
               ]),
+
+              // 2026-11-05：桌面小组件在 App 里本来没有入口，只能去系统桌面加，
+              // 各品牌路径还不一样。这里给一个一键钉桌面的入口。
+              if (!Platform.isWindows) _sectionTitle('桌面'),
+              if (!Platform.isWindows)
+                _card(<Widget>[
+                  ListTile(
+                    title: const Text(
+                      '添加到桌面小组件',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      '把今天的待办放到手机桌面，点一条就标完成',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => _pinWidget(context),
+                  ),
+                ]),
 
               _sectionTitle('提醒'),
               _card(<Widget>[

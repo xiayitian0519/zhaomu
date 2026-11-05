@@ -7,6 +7,36 @@
 3. **补丁**：只修 bug
 4. **构建号 `+N`**：每次打包递增，与次版本对齐（2.5.x → +5，2.6.x → +6）
 
+## 2.27.4+63 — 2026-11-05
+
+### 更新摘要
+
+- 设置页加「添加到桌面小组件」，一键钉到桌面；各品牌列表里也能认出朝暮了
+
+### 问题
+
+小组件只能从系统桌面加，App 里没有任何入口，而且各品牌路径完全不同。
+另外两处硬伤：receiver 没写 `android:label`，三星/OPPO 那类 ROM 的列表里显示
+类名或空白；没给 `previewLayout`，Android 12 以后的选择器里是一块空白方块。
+
+### 改动
+
+1. `strings.xml` 加 `widget_name`=「朝暮 · 今日待办」，Manifest 里
+   receiver 补 `android:label`。
+2. 新增 `res/layout/widget_preview.xml`，`widget_chaomu_info.xml` 加
+   `previewLayout`、`minResizeWidth/Height`（180dp / 60dp），尺寸仍是 4×2。
+3. `MainActivity` 新增 `pinWidget()`：走 `requestPinAppWidget`（Android 8+），
+   返回 `{supported, ok}`，不抛异常。
+4. 设置页新增「桌面」分组 + 「添加到桌面小组件」：钉成功给提示，
+   钉不上弹手动路径（长按桌面空白 → 添加小部件 → 搜朝暮 · 今日待办）。
+
+### 自检
+
+`aapt2 dump xmltree` 确认 `previewLayout / minResizeWidth / minResizeHeight /
+targetCellWidth / targetCellHeight` 都已编进 APK。
+
+---
+
 ## 2.27.3+62 — 2026-11-05
 
 ### 更新摘要

@@ -1,6 +1,8 @@
 package com.xiayitian.chaomu
 
 import android.app.AppOpsManager
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -60,9 +62,39 @@ class MainActivity : FlutterActivity() {
                     "getVersion" -> {
                         result.success(getVersion())
                     }
+                    // 一键把桌面小组件钉到桌面（2026-11-05）。
+                    // 返回 {supported, ok}：supported=false 表示这台 ROM
+                    // 不支持 API，或者系统版本低于 8.0，Dart 那边改给手动路径。
+                    "pinWidget" -> {
+                        result.success(pinWidget())
+                    }
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * 请求系统把朝暮的小组件钉到桌面。
+     *
+     * requestPinAppWidget 是 Android 8.0（API 26）才有的，而且不是所有
+     * 桌面都实现 —— 支持才返回可钉，否则只返回 false，绝不抛异常，
+     * 因为这段代码在设置页里点一下就触发，崩了很难看。
+     */
+    private fun pinWidget(): Map<String, Any> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            return mapOf("supported" to false, "ok" to false)
+        }
+        return try {
+            val mgr = getSystemService(Context.APPWIDGET_SERVICE) as AppWidgetManager
+            if (!mgr.isRequestPinAppWidgetSupported) {
+                return mapOf("supported" to false, "ok" to false)
+            }
+            val provider = ComponentName(this, ChaomuWidget::class.java)
+            val ok = mgr.requestPinAppWidget(provider, null, null)
+            mapOf("supported" to true, "ok" to ok)
+        } catch (e: Exception) {
+            mapOf("supported" to false, "ok" to false)
+        }
     }
 
     /**

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  朝暮桌面小组件的「预览图」（2026-11-05 新增）。
+
+  用来干活的：Android 12 以后系统「添加小部件」列表里，每个组件会显示一块
+  预览方块。不给 previewLayout，那块就是空白，用户看着像坏了。
+
+  这里是纯静态布局，不能用 ListView —— 预览不允许有可滚动集合。
+  也不要点击和 id，跟真实组件保持视觉一致就行。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_bg"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="2dp"
+        android:paddingBottom="5dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="朝暮"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#1A1D26" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:text="11月5日 周三"
+            android:textSize="11sp"
+            android:textColor="#949CAA" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="3 条"
+            android:textSize="11sp"
+            android:textColor="#185FA5" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0.5dp"
+        android:background="#E2E6EE" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="写周报"
+        android:textSize="12sp"
+        android:textColor="#2C2F38"
+        android:singleLine="true" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:text="交月度报表"
+        android:textSize="12sp"
+        android:textColor="#2C2F38"
+        android:singleLine="true" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="5dp"
+        android:text="买菜"
+        android:textSize="12sp"
+        android:textColor="#B8BDC8"
+        android:singleLine="true" />
+
+</LinearLayout>
