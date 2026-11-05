@@ -4,6 +4,7 @@ import 'app_state.dart';
 import 'notifier.dart';
 import 'update_log_page.dart';
 import 'update_model.dart';
+import 'update_flow.dart';
 import 'update_notes.dart';
 import 'updater.dart';
 import 'updates_gen.dart';
@@ -95,8 +96,9 @@ Future<void> maybeCheckRemoteUpdate(BuildContext context) async {
     ),
   );
   await st.setLastPromptDay(today);
-  if (action == 'go') {
-    await Updater.openPage(info.pageUrl);
+  if (action == 'go' && context.mounted) {
+    // 走 App 内下载（能增量就只下补丁），不要跳浏览器下完整包
+    await runUpdateFlow(context, info, cur);
   }
 }
 

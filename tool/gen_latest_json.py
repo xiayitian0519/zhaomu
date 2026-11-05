@@ -43,22 +43,26 @@ def read_notes(ver):
     return ''
 
 
-def find_patch(ver):
-    """找指向本版本的补丁，取源版本号最大的那个。"""
-    best = None
+def find_patches(ver, limit=3):
+    """找所有指向本版本的补丁，按源版本从新到旧，最多留 limit 个。
+
+    2026-11-05 改成多份：用户可能落后两三个版本，只带最新一个补丁的话
+    匹配不上就只能整包重下。多带几份，只要能对上本地的旧包缓存就能增量。
+    """
     if not os.path.isdir(APK_DIR):
-        return None
+        return []
+    hits = []
     for f in os.listdir(APK_DIR):
         m = re.match(r'^([\d.]+)-to-%s\.patch$' % re.escape(ver), f)
         if not m:
             continue
-        key = [int(x) for x in m.group(1).split('.')]
-        if best is None or key > best[0]:
-            best = (key, m.group(1), f)
-    if not best:
-        return None
-    path = os.path.join(APK_DIR, best[2])
-    return {'from': best[1], 'file': best[2], 'size': os.path.getsize(path)}
+        hits.append(([int(x) for x in m.group(1).split('.')], m.group(1), f))
+    hits.sort(reverse=True)
+    out = []
+    for _, src, f in hits[:limit]:
+        path = os.path.join(APK_DIR, f)
+        out.append({'from': src, 'file': f, 'size': os.path.getsize(path)})
+    return out
 
 
 def main():
@@ -78,8 +82,7 @@ def main():
         'win': dl + 'chaomu-%s-windows-x64.zip' % ver,
         'patches': [],
     }
-    p = find_patch(ver)
-    if p:
+    for p in find_patches(ver):
         doc['patches'].append({
             'from': p['from'],
             'url': dl + p['file'],
