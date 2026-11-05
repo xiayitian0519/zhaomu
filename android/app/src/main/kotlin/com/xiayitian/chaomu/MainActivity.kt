@@ -206,6 +206,7 @@ class MainActivity : FlutterActivity() {
         out["brand"] = android.os.Build.MANUFACTURER
         out["model"] = android.os.Build.MODEL
         out["lastPin"] = lastPinNote
+        out["appVersion"] = getVersion()
         // 小组件渲染失败的堆栈（ChaomuWidget.buildView 里写的）
         out["widgetError"] = try {
             val f = java.io.File(filesDir, "widget_error.txt")

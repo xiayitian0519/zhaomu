@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.18', '2026-11-05', <String>[
+    '小组件自检第一行加「朝暮版本」，好确认装的是不是最新版',
+  ]),
   AppUpdate('2.27.17', '2026-11-05', <String>[
     '小组件彻底换写法：不再用列表控件，改成静态 5 行直接填内容',
     '桌面上应该终于能正常显示待办了',

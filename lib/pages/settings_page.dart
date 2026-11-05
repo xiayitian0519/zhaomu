@@ -803,7 +803,7 @@ class SettingsPage extends StatelessWidget {
         (m['providers'] is List) ? m['providers'] as List<dynamic> : <dynamic>[];
 
     final StringBuffer sb = StringBuffer();
-    sb.writeln('系统版本 ${m['sdk'] ?? '?'} · ${m['brand'] ?? '?'} ${m['model'] ?? '?'}');
+    sb.writeln('朝暮版本 ${m['appVersion'] ?? '?'} · 系统 ${m['sdk'] ?? '?'} · ${m['brand'] ?? '?'} ${m['model'] ?? '?'}');
     sb.writeln('桌面启动器：${m['launcher'] ?? '?'}');
     sb.writeln('支持一键钉桌面：${m['pinSupported'] == true ? '是' : '否'}');
     sb.writeln('上次点一键添加的结果：${m['lastPin'] ?? '还没试过'}');
