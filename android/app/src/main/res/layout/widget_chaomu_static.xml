@@ -71,12 +71,14 @@
             android:layout_marginEnd="7dp"
             android:background="#5A6270" />
 
-        <ImageView
+        <TextView
             android:id="@+id/row1_check"
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginEnd="7dp"
-            android:src="@android:drawable/checkbox_off_background" />
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textColor="#185FA5" />
 
         <TextView
             android:id="@+id/row1_title"
@@ -116,12 +118,14 @@
             android:layout_marginEnd="7dp"
             android:background="#5A6270" />
 
-        <ImageView
+        <TextView
             android:id="@+id/row2_check"
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginEnd="7dp"
-            android:src="@android:drawable/checkbox_off_background" />
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textColor="#185FA5" />
 
         <TextView
             android:id="@+id/row2_title"
@@ -161,12 +165,14 @@
             android:layout_marginEnd="7dp"
             android:background="#5A6270" />
 
-        <ImageView
+        <TextView
             android:id="@+id/row3_check"
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginEnd="7dp"
-            android:src="@android:drawable/checkbox_off_background" />
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textColor="#185FA5" />
 
         <TextView
             android:id="@+id/row3_title"
@@ -206,12 +212,14 @@
             android:layout_marginEnd="7dp"
             android:background="#5A6270" />
 
-        <ImageView
+        <TextView
             android:id="@+id/row4_check"
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginEnd="7dp"
-            android:src="@android:drawable/checkbox_off_background" />
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textColor="#185FA5" />
 
         <TextView
             android:id="@+id/row4_title"
@@ -251,12 +259,14 @@
             android:layout_marginEnd="7dp"
             android:background="#5A6270" />
 
-        <ImageView
+        <TextView
             android:id="@+id/row5_check"
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:layout_marginEnd="7dp"
-            android:src="@android:drawable/checkbox_off_background" />
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textColor="#185FA5" />
 
         <TextView
             android:id="@+id/row5_title"

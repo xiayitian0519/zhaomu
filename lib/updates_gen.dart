@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.20', '2026-11-05', <String>[
+    '小组件这次是找到确定根因：勾选图标用了图片控件，却被当文字控件填',
+  ]),
   AppUpdate('2.27.19', '2026-11-05', <String>[
     '点排序现在有明确反馈：弹提示 + 列表滚回顶部',
   ]),
