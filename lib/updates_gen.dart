@@ -5,6 +5,10 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.12', '2026-11-05', <String>[
+    '装包报「解析软件包时出现问题 (33)」修好了：下完先验完整性，坏包自动重下',
+    '每次打开朝暮都会检查更新，不再一天只提醒一次',
+  ]),
   AppUpdate('2.27.11', '2026-11-05', <String>[
     '小米上「添加到桌面小组件」点了没反应：补了桌面快捷方式权限',
     '自检里多了「上次点一键添加到底返回了什么」',

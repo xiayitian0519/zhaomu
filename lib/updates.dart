@@ -78,11 +78,8 @@ Future<void> maybeCheckRemoteUpdate(BuildContext context) async {
   if (info == null) return;
   if (!Updater.isNewer(cur, info.latest)) return;
 
-  final DateTime now = DateTime.now();
-  final String today = '${now.year}-'
-      '${now.month.toString().padLeft(2, '0')}-'
-      '${now.day.toString().padLeft(2, '0')}';
-  if (st.lastPromptDay == today) return;
+  // 2026-11-05 用户明确要求「每次进软件都要检查」——
+  // 所以不再按天限制提醒频率，只要远端比当前版本新就弹。
   if (!context.mounted) return;
 
   final List<AppUpdate> between = updatesBetween(cur, info.latest);
@@ -95,7 +92,6 @@ Future<void> maybeCheckRemoteUpdate(BuildContext context) async {
       fallback: info.notes,
     ),
   );
-  await st.setLastPromptDay(today);
   if (action == 'go' && context.mounted) {
     // 走 App 内下载（能增量就只下补丁），不要跳浏览器下完整包
     await runUpdateFlow(context, info, cur);

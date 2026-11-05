@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'bspatch.dart';
+import 'zip_check.dart';
 
 /// 一次「检查更新」的结果。
 class UpdateInfo {
@@ -313,6 +314,14 @@ class Updater {
       }
       await sink.flush();
       await sink.close();
+      // 2026-11-05 加：服务器报了长度就必须收满，短一截就是半个包，
+      // 交给安装器只会得到「packageInfo is null」。
+      if (total > 0 && received != total) {
+        try {
+          await dest.delete();
+        } catch (_) {}
+        throw Exception('下载不完整：应为 $total 字节，实际收到 $received');
+      }
     } finally {
       client.close();
     }
@@ -354,13 +363,28 @@ class Updater {
           try {
             await patchFile.delete();
           } catch (_) {}
+
+          // 2026-11-05：合成完必须验一下，坏包交给安装器就是
+          // 「解析软件包时出现问题 (33) packageInfo is null」。
+          if (!await looksLikeZip(newFile)) {
+            // 合出来是坏的，八成是本地缓存的旧包本身不完整。
+            // 旧包一起删掉，否则下次还拿它合成，永远坏。
+            try {
+              await oldApk.delete();
+            } catch (_) {}
+            try {
+              await newFile.delete();
+            } catch (_) {}
+            throw Exception('合成出来的安装包不完整，已清掉本地缓存');
+          }
+
           return UpdateFile(
             file: newFile,
             bytes: patchBytes.length,
             wasPatch: true,
           );
         } catch (e) {
-          // 增量失败（补丁坏了 / 旧包版本对不上），静默退回全量
+          // 增量失败（补丁坏了 / 旧包版本对不上 / 合出来是坏的），退回全量
           try {
             if (await newFile.exists()) await newFile.delete();
           } catch (_) {}
@@ -370,6 +394,12 @@ class Updater {
 
     // ---- 全量 ----
     await downloadTo(target, newFile, onProgress: onProgress);
+    if (!await looksLikeZip(newFile)) {
+      try {
+        await newFile.delete();
+      } catch (_) {}
+      throw Exception('下到的安装包不完整（不是有效的压缩包），已删掉，请再试一次');
+    }
     return UpdateFile(file: newFile, bytes: await newFile.length(), wasPatch: false);
   }
 
