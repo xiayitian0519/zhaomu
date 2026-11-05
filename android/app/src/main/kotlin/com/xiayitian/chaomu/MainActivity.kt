@@ -78,6 +78,10 @@ class MainActivity : FlutterActivity() {
                     "widgetDiag" -> {
                         result.success(widgetDiag())
                     }
+                    // 一键添加成功后跳回桌面
+                    "goHome" -> {
+                        result.success(goHome())
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -112,6 +116,24 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             lastPinNote = "调接口抛异常：$e"
             mapOf("supported" to false, "ok" to false)
+        }
+    }
+
+    /**
+     * 跳回桌面（2026-11-05 加）。
+     *
+     * 一键添加成功之后，把用户送回桌面，让他直接看到刚加好的组件。
+     */
+    private fun goHome(): Boolean {
+        return try {
+            val i = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(i)
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 

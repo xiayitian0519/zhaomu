@@ -5,6 +5,9 @@
 import 'update_model.dart';
 
 const List<AppUpdate> kUpdatesGenerated = <AppUpdate>[
+  AppUpdate('2.27.21', '2026-11-05', <String>[
+    '一键添加：成功自动跳回桌面；钉不上自动打开系统选择器，点一下朝暮即放好',
+  ]),
   AppUpdate('2.27.20', '2026-11-05', <String>[
     '小组件这次是找到确定根因：勾选图标用了图片控件，却被当文字控件填',
   ]),

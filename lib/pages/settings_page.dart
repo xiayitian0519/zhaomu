@@ -654,24 +654,26 @@ class SettingsPage extends StatelessWidget {
     } catch (_) {}
     if (!ctx.mounted) return;
 
-    // 2026-11-05 改：不能信 ok=true。
-    // MIUI 会把钉选请求吞掉 —— 接口返回 true，桌面一点动静都没有
-    // （用户实测：提示「已经放好了」，桌面还是空的）。
-    // 所以受理之后等一会儿，回头数一下桌面上到底有没有朝暮的组件。
+    // 2026-11-05：不能信 ok=true，MIUI 会吞钉选请求。
+    // 受理之后等一会儿，回头数一下桌面到底有没有朝暮组件。
     if (ok) {
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      await Future<void>.delayed(const Duration(milliseconds: 2000));
       final int placed = await _countPlaced();
       if (!ctx.mounted) return;
       if (placed > 0) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('已经放好了，回桌面就能看到')),
-        );
+        // 真加上了，直接送回桌面让用户看到
+        await _goHome();
+        if (ctx.mounted) {
+          messenger.showSnackBar(
+            const SnackBar(content: Text('已添加到桌面')),
+          );
+        }
         return;
       }
-      // 系统答应了但没真加 —— 说明被 ROM 吞了，直接进兜底
+      // 系统答应了但没真加 —— 被 ROM 吞了，进兜底
     }
 
-    // 钉不上：先试着直接把系统的「选择小部件」界面拉起来，三步变一步
+    // 兜底：拉起系统的「选择小部件」界面，用户点一下朝暮，系统自动放好
     bool opened = false;
     try {
       final Object? r =
@@ -682,7 +684,10 @@ class SettingsPage extends StatelessWidget {
     if (!ctx.mounted) return;
     if (opened) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('打开系统的选择小部件了，在里面挑朝暮')),
+        const SnackBar(
+          content: Text('点一下「朝暮」就会放到桌面，选完自动回桌面'),
+          duration: const Duration(seconds: 4),
+        ),
       );
       return;
     }
@@ -709,6 +714,14 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 跳回桌面（一键添加成功后调用）。
+  static Future<void> _goHome() async {
+    try {
+      await const MethodChannel('com.xiayitian.chaomu/ringtone')
+          .invokeMethod<Object?>('goHome');
+    } catch (_) {}
   }
 
   /// 查一下现在桌面上到底有几个朝暮小组件。
